@@ -1,169 +1,4 @@
 
---- PATH: .vscode\launch.json ---
-{
-  // Use IntelliSense to learn about possible attributes.
-  // Hover to view descriptions of existing attributes.
-  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
-  "version": "0.2.0",
-  "configurations": [
-    {
-      "type": "node",
-      "request": "attach",
-      "name": "Attach to Rsbuild",
-      "port": 9230,
-      "restart": true,
-      "sourceMaps": true
-    }
-  ]
-}
-
-
---- PATH: .vscode\settings.json ---
-{
-  // --- 基础格式化设置 ---
-  // 指定 Prettier 为默认格式化器
-  "editor.defaultFormatter": "esbenp.prettier-vscode",
-  // 开启保存时自动格式化
-  "editor.formatOnSave": true,
-
-  // --- ESLint 自动修复设置 ---
-  "editor.codeActionsOnSave": {
-    // 保存时自动执行 ESLint 的 --fix 操作
-    "source.fixAll.eslint": "explicit"
-  },
-  "stylelint.validate": ["css", "less"],
-  // --- 特定文件类型的细化配置 ---
-  "[javascript]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
-  },
-  "[typescript]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
-  },
-  "[typescriptreact]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
-  },
-  "[less]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
-  },
-  "[css]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
-  },
-  "[json]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
-  },
-  "files.insertFinalNewline": true,
-  // --- 搜索与显示优化 ---
-  // 排除不需要搜索的目录，提高性能
-  "search.exclude": {
-    "**/node_modules": true,
-    "**/dist": true,
-    "**/.rsbuild": true
-  },
-  // 确保 ESLint 插件在处理 pnpm 项目时能正常工作
-  "eslint.workingDirectories": [{ "mode": "auto" }],
-  "files.eol": "\n",
-  "editor.tabSize": 2,
-  "editor.detectIndentation": false,
-  "editor.insertSpaces": true,
-  "files.encoding": "utf8",
-  "files.trimTrailingWhitespace": true,
-  "[markdown]": {
-    "files.trimTrailingWhitespace": false
-  },
-  "[makefile]": {
-    "editor.insertSpaces": false,
-    "editor.tabSize": 4
-  }
-}
-
-
---- PATH: eslint.config.mjs ---
-import js from '@eslint/js';
-import globals from 'globals';
-import ts from 'typescript-eslint';
-
-export default ts.config(
-  {
-    ignores: ['**/dist/**', '**/.runtime/**', '**/node_modules/**'],
-  },
-  {
-    files: ['*.js', '*.mjs', '*.cjs'],
-    ...ts.configs.disableTypeChecked,
-  },
-  js.configs.recommended,
-  ...ts.configs.recommendedTypeChecked, // 开启类型感知的严谨校验
-  {
-    languageOptions: {
-      globals: {
-        ...globals.node, // 内核与插件运行在 Node.js
-        ...globals.browser, // 演练场运行在浏览器
-      },
-      parserOptions: {
-        project: ['./tsconfig.json', './packages/*/tsconfig.json'], // 关联所有子包的 tsconfig
-        tsconfigRootDir: import.meta.dirname,
-      },
-    },
-    rules: {
-      // 1. 强制使用 import type，这对我们的“物化逻辑”和 Tree-shaking 至关重要
-      '@typescript-eslint/consistent-type-imports': [
-        'error',
-        { prefer: 'type-imports', fixStyle: 'inline-type-imports' },
-      ],
-
-      // 2. 允许在框架底层代码中使用非空断言，但在业务逻辑中警告
-      '@typescript-eslint/no-non-null-assertion': 'off',
-
-      // 3. 强制类成员的显式访问修饰符（public/private/protected）
-      // 这符合我们设计方案中的 OOP 严谨性
-      '@typescript-eslint/explicit-member-accessibility': [
-        'error',
-        { accessibility: 'explicit', overrides: { constructors: 'no-public' } },
-      ],
-
-      // 4. 禁用 any 时给出警告而非错误（考虑到 Umi 历史配置的复杂性）
-      '@typescript-eslint/no-explicit-any': 'warn',
-
-      // 5. 确保异步方法被正确等待，防止仲裁器逻辑出现竞态
-      '@typescript-eslint/no-floating-promises': 'error',
-      '@typescript-eslint/await-thenable': 'error',
-
-      // 6. 统一代码风格
-      'no-console': ['warn', { allow: ['warn', 'error', 'debug', 'info'] }],
-      quotes: ['error', 'single'],
-      semi: ['error', 'always'],
-    },
-  },
-);
-
-
---- PATH: package.json ---
-{
-  "name": "rsbuild-runtime",
-  "version": "1.0.0",
-  "scripts": {
-    "build": "rslib build",
-    "dev": "rslib build --watch",
-    "format": "prettier --write .",
-    "lint": "eslint .",
-    "test": "rstest",
-    "test:watch": "rstest --watch"
-  },
-  "devDependencies": {
-    "@eslint/js": "^9.39.2",
-    "@rslib/core": "^0.19.6",
-    "@rstest/adapter-rslib": "^0.2.0",
-    "@rstest/core": "^0.8.5",
-    "@types/node": "^24.10.13",
-    "eslint": "^9.39.2",
-    "globals": "^17.3.0",
-    "prettier": "^3.8.1",
-    "typescript": "^5.9.3",
-    "typescript-eslint": "^8.55.0"
-  },
-  "private": true
-}
-
-
 --- PATH: packages\core\package.json ---
 {
   "name": "@rsbuild-runtime/core",
@@ -303,10 +138,170 @@ export abstract class Feature<K extends string = string, V = unknown> {
 }
 
 
+--- PATH: packages\core\src\Generator.ts ---
+import path from 'node:path';
+import type { ResolvedHook } from './Arbiter';
+import type { HookDefinition } from './types';
+
+export class Generator {
+  /**
+   * Generates runners.ts content with static imports and pre-orchestrated execution logic.
+   */
+  public static generateRunners(
+    resolvedMap: Map<string, ResolvedHook[]>,
+    hookDefinitions: HookDefinition[],
+    tempDir: string,
+  ): string {
+    const imports: string[] = [];
+    const runnerEntries: string[] = [];
+    const importMap = new Map<string, string>(); // file -> alias
+
+    // 1. Prepare imports
+    let aliasCounter = 0;
+    resolvedMap.forEach((hooks) => {
+      for (const hook of hooks) {
+        if (!importMap.has(hook.file)) {
+          const alias = `plugin_${aliasCounter++}`;
+          importMap.set(hook.file, alias);
+
+          // Use relative path from tempDir to the implementation file
+          const relativePath = this.normalizePath(
+            path.relative(tempDir, hook.file).replace(/\.[jt]sx?$/, ''),
+          );
+          imports.push(`import * as ${alias} from './${relativePath}';`);
+        }
+      }
+    });
+
+    // 2. Build Runners
+    hookDefinitions.forEach((def) => {
+      const implementations = resolvedMap.get(def.key) || [];
+      const fnName = def.key;
+
+      const callChain = implementations.map((impl) => {
+        const alias = importMap.get(impl.file);
+        const exportName = impl.exportName ?? def.key;
+        return `${alias}.${exportName}`;
+      });
+
+      if (def.type === 'modify') {
+        // Onion Model (Reduce)
+        runnerEntries.push(`
+  ${fnName}: (initialValue, args) => {
+    return [${callChain.join(', ')}].reduce((memo, fn) => {
+      return typeof fn === 'function' ? fn(memo, args) : memo;
+    }, initialValue);
+  },`);
+      } else {
+        // Event Model (ForEach)
+        runnerEntries.push(`
+  ${fnName}: (args) => {
+    [${callChain.join(', ')}].forEach(fn => {
+      if (typeof fn === 'function') fn(args);
+    });
+  },`);
+      }
+    });
+
+    return `
+${imports.join('\n')}
+
+export const runners = {${runnerEntries.join('\n')}
+};
+`.trim();
+  }
+
+  /**
+   * Generates the main index.ts (@@/index.ts) that aggregates all static exports.
+   */
+  public static generateIndex(staticExports: string[]): string {
+    return `
+export { runners } from './runners';
+${staticExports.join('\n')}
+`.trim();
+  }
+
+  private static normalizePath(p: string): string {
+    return p.replace(/\\/g, '/');
+  }
+}
+
+
 --- PATH: packages\core\src\index.ts ---
 export * from './types';
 export * from './Feature';
 export * from './Arbiter';
+export * from './Materializer';
+export * from './VersionManager';
+export * from './Generator';
+
+
+--- PATH: packages\core\src\Materializer.ts ---
+import { createHash } from 'node:crypto';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { dirname, normalize } from 'node:path';
+
+export class Materializer {
+  /**
+   * 只有在内容真正发生变化时才写入文件。
+   * 严谨性：通过 MD5 哈希对比确保 I/O 原子性，防止 Rsbuild 监听器触发不必要的 HMR 或重启。
+   *
+   * @param filePath 绝对路径
+   * @param content 文件内容
+   * @param encoding 编码格式，默认为 utf-8
+   */
+  public static writeIfChanged(
+    filePath: string,
+    content: string,
+    encoding: BufferEncoding = 'utf-8',
+  ): void {
+    const normalizedPath = normalize(filePath);
+    const dir = dirname(normalizedPath);
+
+    if (!existsSync(dir)) {
+      mkdirSync(dir, { recursive: true });
+    }
+
+    const newHash = this.calculateHash(content);
+
+    // 3. 如果文件已存在，执行对比
+    if (existsSync(normalizedPath)) {
+      try {
+        const oldContent = readFileSync(normalizedPath);
+        const oldHash = this.calculateHash(oldContent);
+
+        if (newHash === oldHash) {
+          // 内容一致，完全跳过磁盘操作
+          return;
+        }
+      } catch (err) {
+        // 如果读取失败（如权限问题），记录警告并尝试覆盖写入
+        console.warn(
+          `[Materializer] Failed to read existing file: ${normalizedPath}`,
+          err,
+        );
+      }
+    }
+
+    // 4. 执行写入
+    try {
+      writeFileSync(normalizedPath, content, { encoding });
+    } catch (err) {
+      // 抛出结构化错误，便于插件内核捕获并中断构建
+      throw new Error(
+        `[Materializer] Failed to write file: ${normalizedPath}\n${String(err)}`,
+      );
+    }
+  }
+
+  /**
+   * 计算内容的 MD5 哈希
+   * 严谨性：使用 MD5 在此场景下速度最快，且对于代码变更检测，其碰撞率可忽略不计。
+   */
+  private static calculateHash(content: string | Buffer): string {
+    return createHash('md5').update(content).digest('hex');
+  }
+}
 
 
 --- PATH: packages\core\src\types.ts ---
@@ -347,13 +342,322 @@ export interface FeatureParams<V = unknown> {
 }
 
 
---- PATH: packages\core\tests\index.test.ts ---
-import { expect, test } from '@rstest/core';
-import { squared } from '../src/index';
+--- PATH: packages\core\src\VersionManager.ts ---
+import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
-test('squared', () => {
-  expect(squared(2)).toBe(4);
-  expect(squared(12)).toBe(144);
+export class VersionManager {
+  private cache = new Map<string, number>();
+  private userRequire: NodeJS.Require;
+
+  constructor(rootPath: string) {
+    // 严谨定位：以用户项目根目录为起点创建 require 实例
+    // 这样可以确保 resolve 到的是用户项目 node_modules 里的包
+    this.userRequire = createRequire(join(rootPath, 'index.js'));
+  }
+
+  /**
+   * 按需获取依赖包的主版本号
+   */
+  public getV(packageName: string): number {
+    if (this.cache.has(packageName)) {
+      return this.cache.get(packageName)!;
+    }
+
+    let version = 0;
+    try {
+      // 1. 查找包的 package.json 物理路径
+      const pkgPath = this.userRequire.resolve(`${packageName}/package.json`);
+      // 2. 读取内容并解析
+      const pkgContent = JSON.parse(readFileSync(pkgPath, 'utf-8')) as {
+        version: string;
+      };
+      // 3. 提取主版本号
+      version = parseInt(pkgContent.version.split('.')[0], 10) || 0;
+    } catch {
+      // 若 resolve 失败，说明依赖未安装
+      version = 0;
+    }
+
+    this.cache.set(packageName, version);
+    return version;
+  }
+}
+
+
+--- PATH: packages\core\tests\Arbiter.test.ts ---
+import { expect, test, describe, beforeEach } from '@rstest/core';
+import { Arbiter } from '../src/Arbiter';
+import type { FeatureResult } from '../src/types';
+
+void describe('Arbiter', () => {
+  let arbiter: Arbiter;
+
+  void beforeEach(() => {
+    arbiter = new Arbiter();
+  });
+
+  void test('should collect and sort implementations by stage', () => {
+    const f1: FeatureResult = {
+      stage: 10,
+      implements: {
+        hook: { file: 'f1.ts' },
+      },
+    };
+    const f2: FeatureResult = {
+      stage: 5,
+      implements: {
+        hook: { file: 'f2.ts' },
+      },
+    };
+
+    arbiter.addResult('f1', f1);
+    arbiter.addResult('f2', f2);
+
+    const resolved = arbiter.resolve();
+    const hooks = resolved.get('hook');
+
+    expect(hooks).toHaveLength(2);
+    expect(hooks![0].featureId).toBe('f2');
+    expect(hooks![1].featureId).toBe('f1');
+  });
+
+  void test('should handle disableFeatures pruning', () => {
+    const f1: FeatureResult = {
+      implements: { hook: { file: 'f1.ts' } },
+    };
+    const f2: FeatureResult = {
+      disableFeatures: ['f1'],
+      implements: { hook: { file: 'f2.ts' } },
+    };
+
+    arbiter.addResult('f1', f1);
+    arbiter.addResult('f2', f2);
+
+    const resolved = arbiter.resolve();
+    const hooks = resolved.get('hook');
+
+    expect(hooks).toHaveLength(1);
+    expect(hooks![0].featureId).toBe('f2');
+  });
+
+  void test('should handle overrides with replace mode', () => {
+    const f1: FeatureResult = {
+      implements: { hook: { file: 'f1.ts' } },
+    };
+    const f2: FeatureResult = {
+      overrides: {
+        hook: { mode: 'replace', target: 'f1' },
+      },
+      implements: { hook: { file: 'f2.ts' } },
+    };
+
+    arbiter.addResult('f1', f1);
+    arbiter.addResult('f2', f2);
+
+    const resolved = arbiter.resolve();
+    const hooks = resolved.get('hook');
+
+    expect(hooks).toHaveLength(1);
+    expect(hooks![0].featureId).toBe('f2');
+  });
+
+  void test('should prioritize local stage over global stage', () => {
+    const f1: FeatureResult = {
+      stage: 0,
+      implements: {
+        hook: { file: 'f1.ts', stage: 100 },
+      },
+    };
+    const f2: FeatureResult = {
+      stage: 50,
+      implements: {
+        hook: { file: 'f2.ts' },
+      },
+    };
+
+    arbiter.addResult('f1', f1);
+    arbiter.addResult('f2', f2);
+
+    const resolved = arbiter.resolve();
+    const hooks = resolved.get('hook');
+
+    expect(hooks![0].featureId).toBe('f2');
+    expect(hooks![1].featureId).toBe('f1');
+  });
+});
+
+
+--- PATH: packages\core\tests\Generator.test.ts ---
+import { expect, test, describe } from '@rstest/core';
+import { Generator } from '../src/Generator';
+import type { ResolvedHook } from '../src/Arbiter';
+import type { HookDefinition } from '../src/types';
+
+void describe('Generator', () => {
+  const tempDir = '/root/node_modules/.runtime';
+
+  void test('should generate runners with modify (onion) model', () => {
+    const hookDefinitions: HookDefinition[] = [
+      { key: 'rootContainer', type: 'modify' },
+    ];
+
+    const resolvedMap = new Map<string, ResolvedHook[]>();
+    resolvedMap.set('rootContainer', [
+      { featureId: 'f1', file: '/root/f1.ts', stage: 0 },
+      { featureId: 'f2', file: '/root/f2.ts', stage: 10 },
+    ]);
+
+    const content = Generator.generateRunners(
+      resolvedMap,
+      hookDefinitions,
+      tempDir,
+    );
+
+    // Verify static imports (relative paths)
+    expect(content).toContain("import * as plugin_0 from './../../f1';");
+    expect(content).toContain("import * as plugin_1 from './../../f2';");
+
+    // Verify reduce logic for 'modify' type
+    expect(content).toContain(
+      'return [plugin_0.rootContainer, plugin_1.rootContainer].reduce',
+    );
+  });
+
+  void test('should generate runners with event model', () => {
+    const hookDefinitions: HookDefinition[] = [
+      { key: 'onAppMount', type: 'event' },
+    ];
+
+    const resolvedMap = new Map<string, ResolvedHook[]>();
+    resolvedMap.set('onAppMount', [
+      { featureId: 'f1', file: '/root/f1.ts', stage: 0 },
+    ]);
+
+    const content = Generator.generateRunners(
+      resolvedMap,
+      hookDefinitions,
+      tempDir,
+    );
+
+    // Verify forEach logic for 'event' type
+    expect(content).toContain('[plugin_0.onAppMount].forEach');
+    expect(content).not.toContain('.reduce');
+  });
+
+  void test('should handle custom export names', () => {
+    const hookDefinitions: HookDefinition[] = [{ key: 'hook', type: 'event' }];
+
+    const resolvedMap = new Map<string, ResolvedHook[]>();
+    resolvedMap.set('hook', [
+      { featureId: 'f1', file: '/root/f1.ts', exportName: 'customFn' },
+    ]);
+
+    const content = Generator.generateRunners(
+      resolvedMap,
+      hookDefinitions,
+      tempDir,
+    );
+
+    expect(content).toContain('plugin_0.customFn');
+  });
+
+  void test('should generate index with static exports', () => {
+    const staticExports = [
+      "export { useAuth } from './features/auth';",
+      "export { useModel } from './features/model';",
+    ];
+
+    const content = Generator.generateIndex(staticExports);
+
+    expect(content).toContain("export { runners } from './runners';");
+    expect(content).toContain("export { useAuth } from './features/auth';");
+  });
+
+  void test('should normalize windows paths', () => {
+    // Manually testing the private-like behavior via input
+    const hookDefinitions: HookDefinition[] = [{ key: 'h', type: 'event' }];
+    const resolvedMap = new Map<string, ResolvedHook[]>();
+
+    // Simulate Windows absolute path
+    resolvedMap.set('h', [{ featureId: 'f', file: 'C:\\root\\f.ts' }]);
+
+    const content = Generator.generateRunners(
+      resolvedMap,
+      hookDefinitions,
+      'C:\\root\\.runtime',
+    );
+
+    // Path should be './../f' (POSIX style) even on Windows
+    expect(content).toContain("from './../f'");
+    expect(content).not.toContain('\\');
+  });
+});
+
+
+--- PATH: packages\core\tests\Materializer.test.ts ---
+import { expect, test, describe, beforeEach, afterEach } from '@rstest/core';
+import fs from 'node:fs';
+import path from 'node:path';
+import { Materializer } from '../src/Materializer';
+
+const TEST_TMP_DIR = path.join(__dirname, '.tmp_materializer');
+
+void describe('Materializer', () => {
+  void beforeEach(() => {
+    if (!fs.existsSync(TEST_TMP_DIR)) {
+      fs.mkdirSync(TEST_TMP_DIR, { recursive: true });
+    }
+  });
+
+  void afterEach(() => {
+    if (fs.existsSync(TEST_TMP_DIR)) {
+      fs.rmSync(TEST_TMP_DIR, { recursive: true, force: true });
+    }
+  });
+
+  void test('should create file and directory on first call', () => {
+    const filePath = path.join(TEST_TMP_DIR, 'deep/dir/test.txt');
+    const content = 'hello rsbuild';
+
+    Materializer.writeIfChanged(filePath, content);
+
+    expect(fs.existsSync(filePath)).toBe(true);
+    expect(fs.readFileSync(filePath, 'utf-8')).toBe(content);
+  });
+
+  void test('should skip writing if content is identical', async () => {
+    const filePath = path.join(TEST_TMP_DIR, 'stable.txt');
+    const content = 'constant content';
+
+    Materializer.writeIfChanged(filePath, content);
+    const firstMtime = fs.statSync(filePath).mtimeMs;
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    Materializer.writeIfChanged(filePath, content);
+    const secondMtime = fs.statSync(filePath).mtimeMs;
+
+    expect(secondMtime).toBe(firstMtime);
+  });
+
+  void test('should overwrite file if content changes', async () => {
+    const filePath = path.join(TEST_TMP_DIR, 'update.txt');
+    const c1 = 'version 1';
+    const c2 = 'version 2';
+
+    Materializer.writeIfChanged(filePath, c1);
+    const m1 = fs.statSync(filePath).mtimeMs;
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    Materializer.writeIfChanged(filePath, c2);
+    const m2 = fs.statSync(filePath).mtimeMs;
+
+    expect(fs.readFileSync(filePath, 'utf-8')).toBe(c2);
+    expect(m2).toBeGreaterThan(m1);
+  });
 });
 
 
@@ -361,3115 +665,14 @@ test('squared', () => {
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "rootDir": "src"
-  },
-  "include": ["src"]
-}
-
-
---- PATH: packages\plugin\package.json ---
-{
-  "name": "rsbuild-plugin-runtime",
-  "version": "1.0.0",
-  "description": "基于静态编排与代码生成的 Rsbuild 运行时框架插件",
-  "type": "module",
-  "main": "./dist/index.cjs",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
-    }
-  },
-  "files": [
-    "dist"
-  ],
-  "scripts": {
-    "build": "rslib build",
-    "dev": "rslib build --watch",
-    "format": "prettier --write .",
-    "lint": "eslint .",
-    "test": "rstest",
-    "test:watch": "rstest --watch"
-  },
-  "dependencies": {
-    "@rsbuild-runtime/core": "workspace:*",
-    "jiti": "^2.1.2",
-    "fs-extra": "^11.2.0",
-    "lodash-es": "^4.17.21"
-  },
-  "peerDependencies": {
-    "@rsbuild/core": ">=1.0.0"
-  },
-  "devDependencies": {
-    "@rsbuild-runtime/core": "workspace:*",
-    "@rsbuild/core": "^1.7.3",
-    "@rslib/core": "^0.19.6",
-    "@rstest/adapter-rslib": "^0.2.0",
-    "@rstest/core": "^0.8.5",
-    "@types/lodash-es": "^4.17.12",
-    "@types/node": "^24.10.13",
-    "@umijs/types": "^3.5.43",
-    "typescript": "^5.9.3"
-  },
-  "publishConfig": {
-    "access": "public"
-  }
-}
-
-
---- PATH: packages\plugin\rslib.config.ts ---
-import { defineConfig } from '@rslib/core';
-
-export default defineConfig({
-  lib: [
-    {
-      format: 'esm',
-      syntax: ['node 18'],
-      dts: true,
-    },
-    {
-      format: 'cjs',
-      syntax: ['node 18'],
-    },
-  ],
-});
-
-
---- PATH: packages\plugin\rstest.config.ts ---
-import { withRslibConfig } from '@rstest/adapter-rslib';
-import { defineConfig } from '@rstest/core';
-
-export default defineConfig({
-  extends: withRslibConfig(),
-});
-
-
---- PATH: packages\plugin\src\index.ts ---
-import type { RsbuildPlugin } from '@rsbuild/core';
-import { Arbiter } from '@rsbuild-runtime/core';
-import { createJiti } from 'jiti';
-import path from 'node:path';
-
-export const pluginRuntime = (options: unknown = {}): RsbuildPlugin => ({
-  name: 'rsbuild-plugin-runtime',
-  setup(api) {
-    const root = api.context.rootPath;
-    const tempDir = path.join(root, 'node_modules/.runtime');
-
-    api.modifyRsbuildConfig(async (config, { mergeRsbuildConfig }) => {
-      // 1. 加载配置 (示例逻辑)
-      const jiti = createJiti(root);
-      const umiConfig = await jiti.import(path.join(root, '.umirc.ts'));
-
-      // 2. 初始化仲裁器
-      const arbiter = new Arbiter();
-
-      // TODO: 这里将来会遍历加载所有的 Features
-      // const res = await someFeature.apply({ root, config: umiConfig[someFeature.key], getV: ... });
-      // arbiter.addResult(someFeature.id, res);
-
-      // 3. 执行仲裁并修改配置
-      const resolved = arbiter.resolve();
-
-      return mergeRsbuildConfig(config, {
-        source: {
-          alias: {
-            '@@': tempDir,
-            umi: path.join(tempDir, 'index.ts'),
-          },
-        },
-      });
-    });
-  },
-});
-
-
---- PATH: packages\plugin\tests\index.test.ts ---
-import { expect, test } from '@rstest/core';
-import { squared } from '../src/index';
-
-test('squared', () => {
-  expect(squared(2)).toBe(4);
-  expect(squared(12)).toBe(144);
-});
-
-
---- PATH: packages\plugin\tsconfig.json ---
-{
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": {
-    "rootDir": "src"
-  },
-  "include": ["src"]
-}
-
-
---- PATH: playground\.umirc.ts ---
-import { defineConfig } from 'umi';
-
-export default defineConfig({
-  nodeModulesTransform: {
-    type: 'none',
-  },
-  routes: [
-    { exact: true, path: '/', redirect: '/home' },
-    {
-      title: 'content',
-      component: '@/layouts',
-      wrappers: ['@/components/wrapper'],
-      routes: [
-        {
-          title: 'home',
-          path: '/home',
-          component: 'home',
-        },
-        {
-          title: 'user',
-          path: '/user',
-          routes: [
-            { title: 'userinfo', path: 'info', component: '@/pages/user/info' },
-            {
-              title: 'userdashboard',
-              path: '/user/dashboard',
-              component: '@/pages/user/dashboard',
-            },
-          ],
-        },
-      ],
-    },
-  ],
-  fastRefresh: {},
-});
-
-
---- PATH: playground\package.json ---
-{
-  "private": true,
-  "scripts": {
-    "dev": "scripts debug rsbuild dev",
-    "start": "scripts run umi dev",
-    "build": "scripts run umi build",
-    "postinstall": "scripts run umi generate tmp",
-    "prettier": "prettier --write '**/*.{js,jsx,tsx,ts,less,md,json}'",
-    "test": "scripts run umi-test",
-    "test:coverage": "scripts run umi-test --coverage"
-  },
-  "gitHooks": {
-    "pre-commit": "lint-staged"
-  },
-  "lint-staged": {
-    "*.{js,jsx,less,md,json}": [
-      "prettier --write"
-    ],
-    "*.ts?(x)": [
-      "prettier --parser=typescript --write"
-    ]
-  },
-  "dependencies": {
-    "antd": "~4.24.16",
-    "history": "^4.10.1",
-    "lodash-es": "^4.17.23",
-    "react": "17.x",
-    "react-dom": "17.x",
-    "react-router-dom": "^5.3.4",
-    "umi": "^3.5.43",
-    "rsbuild-plugin-runtime": "workspace:*"
-  },
-  "devDependencies": {
-    "@repo/scripts": "workspace:*",
-    "@rsbuild/core": "^1.7.3",
-    "@rsbuild/plugin-less": "^1.6.0",
-    "@rsbuild/plugin-react": "^1.4.5",
-    "@types/history": "^4.7.11",
-    "@types/lodash-es": "^4.17.12",
-    "@types/react": "^17.0.0",
-    "@types/react-dom": "^17.0.0",
-    "@types/react-router-dom": "^5.3.3",
-    "@umijs/preset-react": "1.x",
-    "@umijs/test": "^3.5.43",
-    "less": "^3.13.1",
-    "lint-staged": "^10.0.7",
-    "prettier": "^2.2.0",
-    "typescript": "^4.1.2",
-    "yorkie": "^2.0.0"
-  }
-}
-
-
---- PATH: playground\src\app.ts ---
-export function rootContainer(container: HTMLElement, args: any) {
-  console.log('root container', args);
-  return container;
-}
-
-
---- PATH: playground\src\components\wrapper\index.tsx ---
-export default function Wrapper(props: { children: any }) {
-  return <div style={{ border: '1px solid #535353' }}>{props.children}</div>;
-}
-
-
---- PATH: playground\src\layouts\index.tsx ---
-import type { IRouteComponentProps, Route } from 'umi';
-import 'antd/es/message/style';
-import 'antd/es/notification/style';
-
-export interface RouteProps<
-  Params extends {
-    [K in keyof Params]?: string;
-  } = {},
-  Query extends {
-    [K in keyof Query]?: string;
-  } = {},
-> extends IRouteComponentProps<Params, Query> {
-  route: Route;
-}
-
-export default function Layout(props: RouteProps) {
-  console.log('layout', props);
-  return (
-    <main>
-      <header>header</header>
-      {props.children}
-    </main>
-  );
-}
-
-
---- PATH: playground\src\pages\home.tsx ---
-import styles from './index.less';
-import './home.less';
-
-export default function IndexPage(props: any) {
-  console.log('home props', props);
-  return (
-    <div className="myHome">
-      <h1 className={styles.home}>Home</h1>
-    </div>
-  );
-}
-
-
---- PATH: playground\src\pages\index.less.d.ts ---
-// This file is automatically generated.
-// Please do not change this file!
-interface CssExports {
-  home: string;
-  title: string;
-}
-declare const cssExports: CssExports;
-export default cssExports;
-
-
---- PATH: playground\src\pages\index.tsx ---
-import styles from './index.less';
-
-export default function IndexPage() {
-  return (
-    <div>
-      <h1 className={styles.title}>Page index</h1>
-    </div>
-  );
-}
-
-
---- PATH: playground\src\pages\user\dashboard.tsx ---
-export default function Page() {
-  return (
-    <div className="dashboard">
-      <h1>dashboard</h1>
-    </div>
-  );
-}
-
-
---- PATH: playground\src\pages\user\info.tsx ---
-export default function InfoPage() {
-  return (
-    <div className="InfoPage">
-      <h1>InfoPage</h1>
-    </div>
-  );
-}
-
-
---- PATH: playground\tsconfig.json ---
-{
-  "compilerOptions": {
-    "target": "esnext",
-    "module": "esnext",
-    "moduleResolution": "node",
-    "resolveJsonModule": true,
-    "importHelpers": true,
-    "jsx": "react-jsx",
-    "esModuleInterop": true,
-    "sourceMap": true,
-    "baseUrl": "./",
-    "strict": true,
-    "paths": {
-      "@/*": ["src/*"],
-      "@@/*": ["src/.umi/*", "node_modules/.runtime/*"],
-      "umi": [
-        "src/.umi/exports",
-        "node_modules/.runtime/index.ts"
-      ],
-    },
-    "allowSyntheticDefaultImports": true
-  },
-  "include": [
-    "mock/**/*",
-    "src/**/*",
-    "config/**/*",
-    ".umirc.ts",
-    "typings.d.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "lib",
-    "es",
-    "dist",
-    "typings",
-    "**/__test__",
-    "test",
-    "docs",
-    "tests"
-  ]
-}
-
-
---- PATH: playground\typings.d.ts ---
-declare module '*.css';
-declare module '*.less';
-declare module '*.png';
-declare module '*.svg' {
-  export function ReactComponent(
-    props: React.SVGProps<SVGSVGElement>,
-  ): React.ReactElement;
-  const url: string;
-  export default url;
-}
-
-
---- PATH: pnpm-lock.yaml ---
-lockfileVersion: '9.0'
-
-settings:
-  autoInstallPeers: true
-  excludeLinksFromLockfile: false
-
-importers:
-
-  .:
-    devDependencies:
-      '@eslint/js':
-        specifier: ^9.39.2
-        version: 9.39.4
-      '@rslib/core':
-        specifier: ^0.19.6
-        version: 0.19.6(typescript@5.9.3)
-      '@rstest/adapter-rslib':
-        specifier: ^0.2.0
-        version: 0.2.1(@rslib/core@0.19.6(typescript@5.9.3))(@rstest/core@0.8.5)(typescript@5.9.3)
-      '@rstest/core':
-        specifier: ^0.8.5
-        version: 0.8.5
-      '@types/node':
-        specifier: ^24.10.13
-        version: 24.12.0
-      eslint:
-        specifier: ^9.39.2
-        version: 9.39.4(jiti@2.6.1)
-      globals:
-        specifier: ^17.3.0
-        version: 17.4.0
-      prettier:
-        specifier: ^3.8.1
-        version: 3.8.1
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-      typescript-eslint:
-        specifier: ^8.55.0
-        version: 8.57.1(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3)
-
-  packages/core:
-    devDependencies:
-      '@rsbuild/core':
-        specifier: ^1.7.3
-        version: 1.7.3
-      '@rslib/core':
-        specifier: ^0.19.6
-        version: 0.19.6(typescript@5.9.3)
-      '@rstest/adapter-rslib':
-        specifier: ^0.2.0
-        version: 0.2.1(@rslib/core@0.19.6(typescript@5.9.3))(@rstest/core@0.8.5)(typescript@5.9.3)
-      '@rstest/core':
-        specifier: ^0.8.5
-        version: 0.8.5
-      '@types/lodash-es':
-        specifier: ^4.17.12
-        version: 4.17.12
-      '@types/node':
-        specifier: ^24.10.13
-        version: 24.12.0
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
-  packages/plugin:
-    dependencies:
-      '@rsbuild-runtime/core':
-        specifier: workspace:*
-        version: link:../core
-      fs-extra:
-        specifier: ^11.2.0
-        version: 11.3.4
-      jiti:
-        specifier: ^2.1.2
-        version: 2.6.1
-      lodash-es:
-        specifier: ^4.17.21
-        version: 4.17.23
-    devDependencies:
-      '@rsbuild/core':
-        specifier: ^1.7.3
-        version: 1.7.3
-      '@rslib/core':
-        specifier: ^0.19.6
-        version: 0.19.6(typescript@5.9.3)
-      '@rstest/adapter-rslib':
-        specifier: ^0.2.0
-        version: 0.2.1(@rslib/core@0.19.6(typescript@5.9.3))(@rstest/core@0.8.5)(typescript@5.9.3)
-      '@rstest/core':
-        specifier: ^0.8.5
-        version: 0.8.5
-      '@types/lodash-es':
-        specifier: ^4.17.12
-        version: 4.17.12
-      '@types/node':
-        specifier: ^24.10.13
-        version: 24.12.0
-      '@umijs/types':
-        specifier: ^3.5.43
-        version: 3.5.43(react-dom@17.0.2(react@17.0.2))(react-router@5.2.0(react@17.0.2))(react@17.0.2)
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
-packages:
-
-  '@ast-grep/napi-darwin-arm64@0.37.0':
-    resolution: {integrity: sha512-QAiIiaAbLvMEg/yBbyKn+p1gX2/FuaC0SMf7D7capm/oG4xGMzdeaQIcSosF4TCxxV+hIH4Bz9e4/u7w6Bnk3Q==}
-    engines: {node: '>= 10'}
-    cpu: [arm64]
-    os: [darwin]
-
-  '@ast-grep/napi-darwin-x64@0.37.0':
-    resolution: {integrity: sha512-zvcvdgekd4ySV3zUbUp8HF5nk5zqwiMXTuVzTUdl/w08O7JjM6XPOIVT+d2o/MqwM9rsXdzdergY5oY2RdhSPA==}
-    engines: {node: '>= 10'}
-    cpu: [x64]
-    os: [darwin]
-
-  '@ast-grep/napi-linux-arm64-gnu@0.37.0':
-    resolution: {integrity: sha512-L7Sj0lXy8X+BqSMgr1LB8cCoWk0rericdeu+dC8/c8zpsav5Oo2IQKY1PmiZ7H8IHoFBbURLf8iklY9wsD+cyA==}
-    engines: {node: '>= 10'}
-    cpu: [arm64]
-    os: [linux]
-    libc: [glibc]
-
-  '@ast-grep/napi-linux-arm64-musl@0.37.0':
-    resolution: {integrity: sha512-LF9sAvYy6es/OdyJDO3RwkX3I82Vkfsng1sqUBcoWC1jVb1wX5YVzHtpQox9JrEhGl+bNp7FYxB4Qba9OdA5GA==}
-    engines: {node: '>= 10'}
-    cpu: [arm64]
-    os: [linux]
-    libc: [musl]
-
-  '@ast-grep/napi-linux-x64-gnu@0.37.0':
-    resolution: {integrity: sha512-TViz5/klqre6aSmJzswEIjApnGjJzstG/SE8VDWsrftMBMYt2PTu3MeluZVwzSqDao8doT/P+6U11dU05UOgxw==}
-    engines: {node: '>= 10'}
-    cpu: [x64]
-    os: [linux]
-    libc: [glibc]
-
-  '@ast-grep/napi-linux-x64-musl@0.37.0':
-    resolution: {integrity: sha512-/BcCH33S9E3ovOAEoxYngUNXgb+JLg991sdyiNP2bSoYd30a9RHrG7CYwW6fMgua3ijQ474eV6cq9yZO1bCpXg==}
-    engines: {node: '>= 10'}
-    cpu: [x64]
-    os: [linux]
-    libc: [musl]
-
-  '@ast-grep/napi-win32-arm64-msvc@0.37.0':
-    resolution: {integrity: sha512-TjQA4cFoIEW2bgjLkaL9yqT4XWuuLa5MCNd0VCDhGRDMNQ9+rhwi9eLOWRaap3xzT7g+nlbcEHL3AkVCD2+b3A==}
-    engines: {node: '>= 10'}
-    cpu: [arm64]
-    os: [win32]
-
-  '@ast-grep/napi-win32-ia32-msvc@0.37.0':
-    resolution: {integrity: sha512-uNmVka8fJCdYsyOlF9aZqQMLTatEYBynjChVTzUfFMDfmZ0bihs/YTqJVbkSm8TZM7CUX82apvn50z/dX5iWRA==}
-    engines: {node: '>= 10'}
-    cpu: [ia32]
-    os: [win32]
-
-  '@ast-grep/napi-win32-x64-msvc@0.37.0':
-    resolution: {integrity: sha512-vCiFOT3hSCQuHHfZ933GAwnPzmL0G04JxQEsBRfqONywyT8bSdDc/ECpAfr3S9VcS4JZ9/F6tkePKW/Om2Dq2g==}
-    engines: {node: '>= 10'}
-    cpu: [x64]
-    os: [win32]
-
-  '@ast-grep/napi@0.37.0':
-    resolution: {integrity: sha512-Hb4o6h1Pf6yRUAX07DR4JVY7dmQw+RVQMW5/m55GoiAT/VRoKCWBtIUPPOnqDVhbx1Cjfil9b6EDrgJsUAujEQ==}
-    engines: {node: '>= 10'}
-
-  '@babel/runtime@7.18.6':
-    resolution: {integrity: sha512-t9wi7/AW6XtKahAe20Yw0/mMljKq0B1r2fPdvaAdV/KPDZewFXdaaa6K7lxmZBZ8FBNpCiAT6iHPmd6QO9bKfQ==}
-    engines: {node: '>=6.9.0'}
-
-  '@babel/runtime@7.29.2':
-    resolution: {integrity: sha512-JiDShH45zKHWyGe4ZNVRrCjBz8Nh9TMmZG1kh4QTK8hCBTWBi8Da+i7s1fJw7/lYpM4ccepSNfqzZ/QvABBi5g==}
-    engines: {node: '>=6.9.0'}
-
-  '@bloomberg/record-tuple-polyfill@0.0.3':
-    resolution: {integrity: sha512-sBnCqW0nqofE47mxFnw+lvx6kzsQstwaQMVkh66qm/A6IlsnH7WsyGuVXTou8RF2wL4W7ybOoHPvP2WgIo6rhQ==}
-
-  '@emnapi/core@1.9.0':
-    resolution: {integrity: sha512-0DQ98G9ZQZOxfUcQn1waV2yS8aWdZ6kJMbYCJB3oUBecjWYO1fqJ+a1DRfPF3O5JEkwqwP1A9QEN/9mYm2Yd0w==}
-
-  '@emnapi/runtime@1.9.0':
-    resolution: {integrity: sha512-QN75eB0IH2ywSpRpNddCRfQIhmJYBCJ1x5Lb3IscKAL8bMnVAKnRg8dCoXbHzVLLH7P38N2Z3mtulB7W0J0FKw==}
-
-  '@emnapi/wasi-threads@1.2.0':
-    resolution: {integrity: sha512-N10dEJNSsUx41Z6pZsXU8FjPjpBEplgH24sfkmITrBED1/U2Esum9F3lfLrMjKHHjmi557zQn7kR9R+XWXu5Rg==}
-
-  '@eslint-community/eslint-utils@4.9.1':
-    resolution: {integrity: sha512-phrYmNiYppR7znFEdqgfWHXR6NCkZEK7hwWDHZUjit/2/U0r6XvkDl0SYnoM51Hq7FhCGdLDT6zxCCOY1hexsQ==}
-    engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
-    peerDependencies:
-      eslint: ^6.0.0 || ^7.0.0 || >=8.0.0
-
-  '@eslint-community/regexpp@4.12.2':
-    resolution: {integrity: sha512-EriSTlt5OC9/7SXkRSCAhfSxxoSUgBm33OH+IkwbdpgoqsSsUg7y3uh+IICI/Qg4BBWr3U2i39RpmycbxMq4ew==}
-    engines: {node: ^12.0.0 || ^14.0.0 || >=16.0.0}
-
-  '@eslint/config-array@0.21.2':
-    resolution: {integrity: sha512-nJl2KGTlrf9GjLimgIru+V/mzgSK0ABCDQRvxw5BjURL7WfH5uoWmizbH7QB6MmnMBd8cIC9uceWnezL1VZWWw==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-
-  '@eslint/config-helpers@0.4.2':
-    resolution: {integrity: sha512-gBrxN88gOIf3R7ja5K9slwNayVcZgK6SOUORm2uBzTeIEfeVaIhOpCtTox3P6R7o2jLFwLFTLnC7kU/RGcYEgw==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-
-  '@eslint/core@0.17.0':
-    resolution: {integrity: sha512-yL/sLrpmtDaFEiUj1osRP4TI2MDz1AddJL+jZ7KSqvBuliN4xqYY54IfdN8qD8Toa6g1iloph1fxQNkjOxrrpQ==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-
-  '@eslint/eslintrc@3.3.5':
-    resolution: {integrity: sha512-4IlJx0X0qftVsN5E+/vGujTRIFtwuLbNsVUe7TO6zYPDR1O6nFwvwhIKEKSrl6dZchmYBITazxKoUYOjdtjlRg==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-
-  '@eslint/js@9.39.4':
-    resolution: {integrity: sha512-nE7DEIchvtiFTwBw4Lfbu59PG+kCofhjsKaCWzxTpt4lfRjRMqG6uMBzKXuEcyXhOHoUp9riAm7/aWYGhXZ9cw==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-
-  '@eslint/object-schema@2.1.7':
-    resolution: {integrity: sha512-VtAOaymWVfZcmZbp6E2mympDIHvyjXs/12LqWYjVw6qjrfF+VK+fyG33kChz3nnK+SU5/NeHOqrTEHS8sXO3OA==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-
-  '@eslint/plugin-kit@0.4.1':
-    resolution: {integrity: sha512-43/qtrDUokr7LJqoF2c3+RInu/t4zfrpYdoSDfYyhg52rwLV6TnOvdG4fXm7IkSB3wErkcmJS9iEhjVtOSEjjA==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-
-  '@humanfs/core@0.19.1':
-    resolution: {integrity: sha512-5DyQ4+1JEUzejeK1JGICcideyfUbGixgS9jNgex5nqkW+cY7WZhxBigmieN5Qnw9ZosSNVC9KQKyb+GUaGyKUA==}
-    engines: {node: '>=18.18.0'}
-
-  '@humanfs/node@0.16.7':
-    resolution: {integrity: sha512-/zUx+yOsIrG4Y43Eh2peDeKCxlRt/gET6aHfaKpuq267qXdYDFViVHfMaLyygZOnl0kGWxFIgsBy8QFuTLUXEQ==}
-    engines: {node: '>=18.18.0'}
-
-  '@humanwhocodes/module-importer@1.0.1':
-    resolution: {integrity: sha512-bxveV4V8v5Yb4ncFTT3rPSgZBOpCkjfK0y4oVVVJwIuDVBRMDXrPyXRL988i5ap9m9bnyEEjWfm5WkBmtffLfA==}
-    engines: {node: '>=12.22'}
-
-  '@humanwhocodes/retry@0.4.3':
-    resolution: {integrity: sha512-bV0Tgo9K4hfPCek+aMAn81RppFKv2ySDQeMoSZuvTASywNTnVJCArCZE2FWqpvIatKu7VMRLWlR1EazvVhDyhQ==}
-    engines: {node: '>=18.18'}
-
-  '@module-federation/error-codes@0.22.0':
-    resolution: {integrity: sha512-xF9SjnEy7vTdx+xekjPCV5cIHOGCkdn3pIxo9vU7gEZMIw0SvAEdsy6Uh17xaCpm8V0FWvR0SZoK9Ik6jGOaug==}
-
-  '@module-federation/runtime-core@0.22.0':
-    resolution: {integrity: sha512-GR1TcD6/s7zqItfhC87zAp30PqzvceoeDGYTgF3Vx2TXvsfDrhP6Qw9T4vudDQL3uJRne6t7CzdT29YyVxlgIA==}
-
-  '@module-federation/runtime-tools@0.22.0':
-    resolution: {integrity: sha512-4ScUJ/aUfEernb+4PbLdhM/c60VHl698Gn1gY21m9vyC1Ucn69fPCA1y2EwcCB7IItseRMoNhdcWQnzt/OPCNA==}
-
-  '@module-federation/runtime@0.22.0':
-    resolution: {integrity: sha512-38g5iPju2tPC3KHMPxRKmy4k4onNp6ypFPS1eKGsNLUkXgHsPMBFqAjDw96iEcjri91BrahG4XcdyKi97xZzlA==}
-
-  '@module-federation/sdk@0.22.0':
-    resolution: {integrity: sha512-x4aFNBKn2KVQRuNVC5A7SnrSCSqyfIWmm1DvubjbO9iKFe7ith5niw8dqSFBekYBg2Fwy+eMg4sEFNVvCAdo6g==}
-
-  '@module-federation/webpack-bundler-runtime@0.22.0':
-    resolution: {integrity: sha512-aM8gCqXu+/4wBmJtVeMeeMN5guw3chf+2i6HajKtQv7SJfxV/f4IyNQJUeUQu9HfiAZHjqtMV5Lvq/Lvh8LdyA==}
-
-  '@napi-rs/wasm-runtime@1.0.7':
-    resolution: {integrity: sha512-SeDnOO0Tk7Okiq6DbXmmBODgOAb9dp9gjlphokTUxmt8U3liIP1ZsozBahH69j/RJv+Rfs6IwUKHTgQYJ/HBAw==}
-
-  '@rsbuild/core@1.7.3':
-    resolution: {integrity: sha512-kI1oQvCXbQYxUvQPnDLdjSX4gFsbrFNpuUj6jXEJ7IcJ74Q+n4oeFj74/8tKerhxhe0L90m/ZQfzLeN5ORGA9w==}
-    engines: {node: '>=18.12.0'}
-    hasBin: true
-
-  '@rslib/core@0.19.6':
-    resolution: {integrity: sha512-/znUZlPX252DhAf2WvzmkZ2rBi85d8TadkABYvWoUGAVGsmFOiX+anDwLOqQ+7m5KsMFzM/SCqB2yEBvAj/T2g==}
-    engines: {node: '>=18.12.0'}
-    hasBin: true
-    peerDependencies:
-      '@microsoft/api-extractor': ^7
-      typescript: ^5
-    peerDependenciesMeta:
-      '@microsoft/api-extractor':
-        optional: true
-      typescript:
-        optional: true
-
-  '@rspack/binding-darwin-arm64@1.7.9':
-    resolution: {integrity: sha512-64dgstte0If5czi9bA/cpOe0ryY6wC9AIQRtyJ3DlOF6Tt+y9cKkmUoGu3V+WYaYIZRT7HNk8V7kL8amVjFTYw==}
-    cpu: [arm64]
-    os: [darwin]
-
-  '@rspack/binding-darwin-x64@1.7.9':
-    resolution: {integrity: sha512-2QSLs3w4rLy4UUGVnIlkt6IlIKOzR1e0RPsq2FYQW6s3p9JrwRCtOeHohyh7EJSqF54dtfhe9UZSAwba3LqH1Q==}
-    cpu: [x64]
-    os: [darwin]
-
-  '@rspack/binding-linux-arm64-gnu@1.7.9':
-    resolution: {integrity: sha512-qhUGI/uVfvLmKWts4QkVHGL8yfUyJkblZs+OFD5Upa2y676EOsbQgWsCwX4xGB6Tv+TOzFP0SLh/UfO8ZfdE+w==}
-    cpu: [arm64]
-    os: [linux]
-    libc: [glibc]
-
-  '@rspack/binding-linux-arm64-musl@1.7.9':
-    resolution: {integrity: sha512-VjfmR1hgO9n3L6MaE5KG+DXSrrLVqHHOkVcOtS2LMq3bjMTwbBywY7ycymcLnX5KJsol8d3ZGYep6IfSOt3lFA==}
-    cpu: [arm64]
-    os: [linux]
-    libc: [musl]
-
-  '@rspack/binding-linux-x64-gnu@1.7.9':
-    resolution: {integrity: sha512-0kldV+3WTs/VYDWzxJ7K40hCW26IHtnk8xPK3whKoo1649rgeXXa0EdsU5P7hG8Ef5SWQjHHHZ/fuHYSO3Y6HA==}
-    cpu: [x64]
-    os: [linux]
-    libc: [glibc]
-
-  '@rspack/binding-linux-x64-musl@1.7.9':
-    resolution: {integrity: sha512-Gi4872cFtc2d83FKATR6Qcf2VBa/tFCqffI/IwRRl6Hx5FulEBqx+tH7gAuRVF693vrbXNxK+FQ+k4iEsEJxrw==}
-    cpu: [x64]
-    os: [linux]
-    libc: [musl]
-
-  '@rspack/binding-wasm32-wasi@1.7.9':
-    resolution: {integrity: sha512-5QEzqo6EaolpuZmK6w/mgSueorgGnnzp7dJaAvBj6ECFIg/aLXhXXmWCWbxt7Ws2gKvG5/PgaxDqbUxYL51juA==}
-    cpu: [wasm32]
-
-  '@rspack/binding-win32-arm64-msvc@1.7.9':
-    resolution: {integrity: sha512-MMqvcrIc8aOqTuHjWkjdzilvoZ3Hv07Od0Foogiyq3JMudsS3Wcmh7T1dFerGg19MOJcRUeEkrg2NQOMOQ6xDA==}
-    cpu: [arm64]
-    os: [win32]
-
-  '@rspack/binding-win32-ia32-msvc@1.7.9':
-    resolution: {integrity: sha512-4kYYS+NZ2CuNbKjq40yB/UEyB51o1PHj5wpr+Y943oOJXpEKWU2Q4vkF8VEohPEcnA9cKVotYCnqStme+02suA==}
-    cpu: [ia32]
-    os: [win32]
-
-  '@rspack/binding-win32-x64-msvc@1.7.9':
-    resolution: {integrity: sha512-1g+QyXXvs+838Un/4GaUvJfARDGHMCs15eXDYWBl5m/Skubyng8djWAgr6ag1+cVoJZXCPOvybTItcblWF3gbQ==}
-    cpu: [x64]
-    os: [win32]
-
-  '@rspack/binding@1.7.9':
-    resolution: {integrity: sha512-A56e0NdfNwbOSJoilMkxzaPuVYaKCNn1shuiwWnCIBmhV9ix1n9S1XvquDjkGyv+gCdR1+zfJBOa5DMB7htLHw==}
-
-  '@rspack/core@1.7.9':
-    resolution: {integrity: sha512-VHuSKvRkuv42Ya+TxEGO0LE0r9+8P4tKGokmomj4R1f/Nu2vtS3yoaIMfC4fR6VuHGd3MZ+KTI0cNNwHfFcskw==}
-    engines: {node: '>=18.12.0'}
-    peerDependencies:
-      '@swc/helpers': '>=0.5.1'
-    peerDependenciesMeta:
-      '@swc/helpers':
-        optional: true
-
-  '@rspack/lite-tapable@1.1.0':
-    resolution: {integrity: sha512-E2B0JhYFmVAwdDiG14+DW0Di4Ze4Jg10Pc4/lILUrd5DRCaklduz2OvJ5HYQ6G+hd+WTzqQb3QnDNfK4yvAFYw==}
-
-  '@rstest/adapter-rslib@0.2.1':
-    resolution: {integrity: sha512-JGOjyNMpgIgKiQhSoTBt3Dr1zdxMURY422EDoA7p6wkqoG8R2OIRoXH5KLgorvhfpOzAjfx6Y3HlKaGJ+pRRjw==}
-    peerDependencies:
-      '@rslib/core': '>=0.18.6'
-      '@rstest/core': '>=0.7.7'
-      typescript: ^5
-    peerDependenciesMeta:
-      typescript:
-        optional: true
-
-  '@rstest/core@0.8.5':
-    resolution: {integrity: sha512-4E9pXpy2Jxy1+J4mqGnsVQn7gVnkIv2lA7AbwAY0Zy90jJo+YCchpTGosba/jhBJJhETRAr3GIkPUECxFoyQ9A==}
-    engines: {node: '>=18.12.0'}
-    hasBin: true
-    peerDependencies:
-      happy-dom: '*'
-      jsdom: '*'
-    peerDependenciesMeta:
-      happy-dom:
-        optional: true
-      jsdom:
-        optional: true
-
-  '@swc/helpers@0.5.19':
-    resolution: {integrity: sha512-QamiFeIK3txNjgUTNppE6MiG3p7TdninpZu0E0PbqVh1a9FNLT2FRhisaa4NcaX52XVhA5l7Pk58Ft7Sqi/2sA==}
-
-  '@tybys/wasm-util@0.10.1':
-    resolution: {integrity: sha512-9tTaPJLSiejZKx+Bmog4uSubteqTvFrVrURwkmHixBo0G4seD0zUxp98E1DzUBJxLQ3NPwXrGKDiVjwx/DpPsg==}
-
-  '@types/chai@5.2.3':
-    resolution: {integrity: sha512-Mw558oeA9fFbv65/y4mHtXDs9bPnFMZAL/jxdPFUpOHHIXX91mcgEHbS5Lahr+pwZFR8A7GQleRWeI6cGFC2UA==}
-
-  '@types/deep-eql@4.0.2':
-    resolution: {integrity: sha512-c9h9dVVMigMPc4bwTvC5dxqtqJZwQPePsWjPlpSOnojbor6pGqdk541lfA7AqFQr5pB1BRdq0juY9db81BwyFw==}
-
-  '@types/estree@1.0.8':
-    resolution: {integrity: sha512-dWHzHa2WqEXI/O1E9OjrocMTKJl2mSrEolh1Iomrv6U+JuNwaHXsXx9bLu5gG7BUWFIN0skIQJQ/L1rIex4X6w==}
-
-  '@types/history@4.7.11':
-    resolution: {integrity: sha512-qjDJRrmvBMiTx+jyLxvLfJU7UznFuokDv4f3WRuriHKERccVpFU+8XMQUAbDzoiJCsmexxRExQeMwwCdamSKDA==}
-
-  '@types/history@5.0.0':
-    resolution: {integrity: sha512-hy8b7Y1J8OGe6LbAjj3xniQrj3v6lsivCcrmf4TzSgPzLkhIeKgc5IZnT7ReIqmEuodjfO8EYAuoFvIrHi/+jQ==}
-    deprecated: This is a stub types definition. history provides its own type definitions, so you do not need this installed.
-
-  '@types/json-schema@7.0.15':
-    resolution: {integrity: sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==}
-
-  '@types/lodash-es@4.17.12':
-    resolution: {integrity: sha512-0NgftHUcV4v34VhXm8QBSftKVXtbkBG3ViCjs6+eJ5a6y6Mi/jiFGPc1sC7QK+9BFhWrURE3EOggmWaSxL9OzQ==}
-
-  '@types/lodash@4.17.24':
-    resolution: {integrity: sha512-gIW7lQLZbue7lRSWEFql49QJJWThrTFFeIMJdp3eH4tKoxm1OvEPg02rm4wCCSHS0cL3/Fizimb35b7k8atwsQ==}
-
-  '@types/node@24.12.0':
-    resolution: {integrity: sha512-GYDxsZi3ChgmckRT9HPU0WEhKLP08ev/Yfcq2AstjrDASOYCSXeyjDsHg4v5t4jOj7cyDX3vmprafKlWIG9MXQ==}
-
-  '@types/prop-types@15.7.15':
-    resolution: {integrity: sha512-F6bEyamV9jKGAFBEmlQnesRPGOQqS2+Uwi0Em15xenOxHaf2hv6L8YCVn3rPdPJOiJfPiCnLIRyvwVaqMY3MIw==}
-
-  '@types/react-dom@16.9.25':
-    resolution: {integrity: sha512-ZK//eAPhwft9Ul2/Zj+6O11YR6L4JX0J2sVeBC9Ft7x7HFN7xk7yUV/zDxqV6rjvqgl6r8Dq7oQImxtyf/Mzcw==}
-    peerDependencies:
-      '@types/react': ^16.0.0
-
-  '@types/react-router-config@5.0.11':
-    resolution: {integrity: sha512-WmSAg7WgqW7m4x8Mt4N6ZyKz0BubSj/2tVUMsAHp+Yd2AMwcSbeFq9WympT19p5heCFmF97R9eD5uUR/t4HEqw==}
-
-  '@types/react-router-dom@5.1.7':
-    resolution: {integrity: sha512-D5mHD6TbdV/DNHYsnwBTv+y73ei+mMjrkGrla86HthE4/PVvL1J94Bu3qABU+COXzpL23T1EZapVVpwHuBXiUg==}
-
-  '@types/react-router@5.1.12':
-    resolution: {integrity: sha512-0bhXQwHYfMeJlCh7mGhc0VJTRm0Gk+Z8T00aiP4702mDUuLs9SMhnd2DitpjWFjdOecx2UXtICK14H9iMnziGA==}
-
-  '@types/react-router@5.1.20':
-    resolution: {integrity: sha512-jGjmu/ZqS7FjSH6owMcD5qpq19+1RS9DeVRqfl1FeBMxTDQAGwlMWOcs52NDoXaNKyG3d1cYQFMs9rCrb88o9Q==}
-
-  '@types/react@16.14.69':
-    resolution: {integrity: sha512-NdnAamzkxLX9LBssSdt9Q0tQ3LR94hYxotI4/sRUs1vHKFXaDx9xDbK8S4wuw5bwrxiiXbTYyhKeITtFnwDvEA==}
-
-  '@types/scheduler@0.16.8':
-    resolution: {integrity: sha512-WZLiwShhwLRmeV6zH+GkbOFT6Z6VklCItrDioxUnv+u4Ll+8vKeFySoFyK/0ctcRpOmwAicELfmys1sDc/Rw+A==}
-
-  '@typescript-eslint/eslint-plugin@8.57.1':
-    resolution: {integrity: sha512-Gn3aqnvNl4NGc6x3/Bqk1AOn0thyTU9bqDRhiRnUWezgvr2OnhYCWCgC8zXXRVqBsIL1pSDt7T9nJUe0oM0kDQ==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-    peerDependencies:
-      '@typescript-eslint/parser': ^8.57.1
-      eslint: ^8.57.0 || ^9.0.0 || ^10.0.0
-      typescript: '>=4.8.4 <6.0.0'
-
-  '@typescript-eslint/parser@8.57.1':
-    resolution: {integrity: sha512-k4eNDan0EIMTT/dUKc/g+rsJ6wcHYhNPdY19VoX/EOtaAG8DLtKCykhrUnuHPYvinn5jhAPgD2Qw9hXBwrahsw==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-    peerDependencies:
-      eslint: ^8.57.0 || ^9.0.0 || ^10.0.0
-      typescript: '>=4.8.4 <6.0.0'
-
-  '@typescript-eslint/project-service@8.57.1':
-    resolution: {integrity: sha512-vx1F37BRO1OftsYlmG9xay1TqnjNVlqALymwWVuYTdo18XuKxtBpCj1QlzNIEHlvlB27osvXFWptYiEWsVdYsg==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-    peerDependencies:
-      typescript: '>=4.8.4 <6.0.0'
-
-  '@typescript-eslint/scope-manager@8.57.1':
-    resolution: {integrity: sha512-hs/QcpCwlwT2L5S+3fT6gp0PabyGk4Q0Rv2doJXA0435/OpnSR3VRgvrp8Xdoc3UAYSg9cyUjTeFXZEPg/3OKg==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-
-  '@typescript-eslint/tsconfig-utils@8.57.1':
-    resolution: {integrity: sha512-0lgOZB8cl19fHO4eI46YUx2EceQqhgkPSuCGLlGi79L2jwYY1cxeYc1Nae8Aw1xjgW3PKVDLlr3YJ6Bxx8HkWg==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-    peerDependencies:
-      typescript: '>=4.8.4 <6.0.0'
-
-  '@typescript-eslint/type-utils@8.57.1':
-    resolution: {integrity: sha512-+Bwwm0ScukFdyoJsh2u6pp4S9ktegF98pYUU0hkphOOqdMB+1sNQhIz8y5E9+4pOioZijrkfNO/HUJVAFFfPKA==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-    peerDependencies:
-      eslint: ^8.57.0 || ^9.0.0 || ^10.0.0
-      typescript: '>=4.8.4 <6.0.0'
-
-  '@typescript-eslint/types@8.57.1':
-    resolution: {integrity: sha512-S29BOBPJSFUiblEl6RzPPjJt6w25A6XsBqRVDt53tA/tlL8q7ceQNZHTjPeONt/3S7KRI4quk+yP9jK2WjBiPQ==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-
-  '@typescript-eslint/typescript-estree@8.57.1':
-    resolution: {integrity: sha512-ybe2hS9G6pXpqGtPli9Gx9quNV0TWLOmh58ADlmZe9DguLq0tiAKVjirSbtM1szG6+QH6rVXyU6GTLQbWnMY+g==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-    peerDependencies:
-      typescript: '>=4.8.4 <6.0.0'
-
-  '@typescript-eslint/utils@8.57.1':
-    resolution: {integrity: sha512-XUNSJ/lEVFttPMMoDVA2r2bwrl8/oPx8cURtczkSEswY5T3AeLmCy+EKWQNdL4u0MmAHOjcWrqJp2cdvgjn8dQ==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-    peerDependencies:
-      eslint: ^8.57.0 || ^9.0.0 || ^10.0.0
-      typescript: '>=4.8.4 <6.0.0'
-
-  '@typescript-eslint/visitor-keys@8.57.1':
-    resolution: {integrity: sha512-YWnmJkXbofiz9KbnbbwuA2rpGkFPLbAIetcCNO6mJ8gdhdZ/v7WDXsoGFAJuM6ikUFKTlSQnjWnVO4ux+UzS6A==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-
-  '@umijs/ast@3.5.43':
-    resolution: {integrity: sha512-P+yperHXuPCewEhgzKRXOxhpQmcK06J2PuLs7XaeQatpUTP//omJeIAcSHV8Rr9ynuvYnz9lS1qKqjgfjmZ8bA==}
-
-  '@umijs/babel-plugin-auto-css-modules@3.5.43':
-    resolution: {integrity: sha512-u1JTVqgABY3cSCWsaRumnPINZzgUE5WDTsm7BYXf5a+mdZQiv87pCU2jC6S4OabMqm3mR75gJc5wLR4sFnlkrA==}
-
-  '@umijs/babel-plugin-import-to-await-require@3.5.43':
-    resolution: {integrity: sha512-PhPTS/i2yBEdZbsSp6Cj3cEcxwLOcacjzUgkH+g9vvVwMSAgMqkI1Tx57Y70LZorE4PeUNl5yeS9hGm24JAMQA==}
-
-  '@umijs/babel-plugin-lock-core-js-3@3.5.43':
-    resolution: {integrity: sha512-hOb6cyCrn/4SQ2qGc6RBOG7aPtMHqyuy2iJonzFobdbkOW5nOnYfK/F3oeSJqn/amynFr3W6cUdflyg3Mn5lRQ==}
-
-  '@umijs/babel-plugin-no-anonymous-default-export@3.5.43':
-    resolution: {integrity: sha512-itH+IV96AChX7zKDLEKNi6IEHL+RT8DsP8BSH3oDGWRE0OM4VlpM42N195bsMtOtdl7kCb9HUP1Bg1J/+hHwsw==}
-
-  '@umijs/babel-preset-umi@3.5.43':
-    resolution: {integrity: sha512-raFsiPYy70QNKM4jSo+qdO3wkZr9PCsSSz/+CGTUPkpre5sk6ISDcuXdvEJ92viMe1Xk1+LaPcnbJqIdu7EClA==}
-
-  '@umijs/core@3.5.43':
-    resolution: {integrity: sha512-YT/ZrYZl5xrffW3WyDzsrec0FMhebjDoJSA7A2X2WX8lmsIhjzrVEDeR265+t5J+OH7joB8pMMiV/tvhVPHb7w==}
-
-  '@umijs/deps@3.5.43':
-    resolution: {integrity: sha512-1UugbYw+Emcq1AngzLgCvpMDdIVjpBVGwdrWDcxt3zjSR/2teRbaMdzUEqaMaqMWYVMbZKorARuyit5hZorrXQ==}
-
-  '@umijs/renderer-react@3.5.43':
-    resolution: {integrity: sha512-nadGLVbc6qrEX5pd+qY4nr9Mzl7x2hhxec2JeAd2Bg0JkZYNC8H4crTfe844uLm3MvqAtAhomGhN5c0ejDEBhA==}
-    peerDependencies:
-      react: 16.x || 17.x
-      react-dom: 16.x || 17.x
-
-  '@umijs/runtime@3.5.43':
-    resolution: {integrity: sha512-jCmkF5QcqbqzJgtd12Hy6XthLTAcaD4feMHnzM+UqTE74N7lfD13P0brXHrGqkcLbI1NgUs+9rKYIUa56w6jpw==}
-    peerDependencies:
-      react: 16.x || 17.x
-
-  '@umijs/server@3.5.43':
-    resolution: {integrity: sha512-aUSNqnO6WvhgIU6jK1+2YCNkuP6UgiEhTaT/VkSPZdCjagfov2ZfJQ0xWl8x7tocuAaBph6UvXFJWjCQvZ5pHw==}
-
-  '@umijs/types@3.5.43':
-    resolution: {integrity: sha512-XVZuT1X+VpPYrdlDEeginBwBNZaYUDtt3WOyFvfGmBEdqD0iNx0ZgyWmJBhlfRcck5+oYkFpOzmmRIROux2zlA==}
-
-  '@umijs/utils@3.5.43':
-    resolution: {integrity: sha512-LQrCkZEa9Fb0zhId1n6CdU489tzJp4/usHVvVcTwjah7jF48zrHXD4OClGjSxvZ63d+3950mZY5IWE9UZVhnDg==}
-
-  acorn-jsx@5.3.2:
-    resolution: {integrity: sha512-rq9s+JNhf0IChjtDXxllJ7g41oZk5SlXtp0LHwyA5cejwn7vKmKp4pPri6YEePv2PU65sAsegbXtIinmDFDXgQ==}
-    peerDependencies:
-      acorn: ^6.0.0 || ^7.0.0 || ^8.0.0
-
-  acorn@8.16.0:
-    resolution: {integrity: sha512-UVJyE9MttOsBQIDKw1skb9nAwQuR5wuGD3+82K6JgJlm/Y+KI92oNsMNGZCYdDsVtRHSak0pcV5Dno5+4jh9sw==}
-    engines: {node: '>=0.4.0'}
-    hasBin: true
-
-  ajv@6.14.0:
-    resolution: {integrity: sha512-IWrosm/yrn43eiKqkfkHis7QioDleaXQHdDVPKg0FSwwd/DuvyX79TZnFOnYpB7dcsFAMmtFztZuXPDvSePkFw==}
-
-  ansi-styles@4.3.0:
-    resolution: {integrity: sha512-zbB9rCJAT1rbjiVDb2hqKFHNYLxgtk8NURxZ3IZwD3F6NtxbXZQCnnSi1Lkx+IDohdPlFp222wVALIheZJQSEg==}
-    engines: {node: '>=8'}
-
-  anymatch@3.1.3:
-    resolution: {integrity: sha512-KMReFUr0B4t+D+OBkjR3KYqvocp2XaSzO55UcB6mgQMd3KbcE+mWTyvVV7D/zsdEbNnV6acZUutkiHQXvTr1Rw==}
-    engines: {node: '>= 8'}
-
-  arch@2.2.0:
-    resolution: {integrity: sha512-Of/R0wqp83cgHozfIYLbBMnej79U/SVGOOyuB3VVFv1NRM/PSFMK12x9KVtiYzJqmnU5WR2qp0Z5rHb7sWGnFQ==}
-
-  argparse@2.0.1:
-    resolution: {integrity: sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q==}
-
-  assertion-error@2.0.1:
-    resolution: {integrity: sha512-Izi8RQcffqCeNVgFigKli1ssklIbpHnCYc6AknXGYoB6grJqyeby7jv12JUQgmTAnIDnbck1uxksT4dzN3PWBA==}
-    engines: {node: '>=12'}
-
-  balanced-match@1.0.2:
-    resolution: {integrity: sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==}
-
-  balanced-match@4.0.4:
-    resolution: {integrity: sha512-BLrgEcRTwX2o6gGxGOCNyMvGSp35YofuYzw9h1IMTRmKqttAZZVU67bdb9Pr2vUHA8+j3i2tJfjO6C6+4myGTA==}
-    engines: {node: 18 || 20 || >=22}
-
-  binary-extensions@2.3.0:
-    resolution: {integrity: sha512-Ceh+7ox5qe7LJuLHoY0feh3pHuUDHAcRUeyL2VYghZwfpkNIy/+8Ocg0a3UuSoYzavmylwuLWQOf3hl0jjMMIw==}
-    engines: {node: '>=8'}
-
-  brace-expansion@1.1.12:
-    resolution: {integrity: sha512-9T9UjW3r0UW5c1Q7GTwllptXwhvYmEzFhzMfZ9H7FQWt+uZePjZPjBP/W1ZEyZ1twGWom5/56TF4lPcqjnDHcg==}
-
-  brace-expansion@5.0.4:
-    resolution: {integrity: sha512-h+DEnpVvxmfVefa4jFbCf5HdH5YMDXRsmKflpf1pILZWRFlTbJpxeU55nJl4Smt5HQaGzg1o6RHFPJaOqnmBDg==}
-    engines: {node: 18 || 20 || >=22}
-
-  braces@3.0.3:
-    resolution: {integrity: sha512-yQbXgO/OSZVD2IsiLlro+7Hf6Q18EJrKSEsdoMzKePKXct3gvD8oLcOQdIzGupr5Fj+EDe8gO/lxc1BzfMpxvA==}
-    engines: {node: '>=8'}
-
-  callsites@3.1.0:
-    resolution: {integrity: sha512-P8BjAsXvZS+VIDUI11hHCQEv74YT67YUi5JJFNWIqL235sBmjX4+qx9Muvls5ivyNENctx46xQLQ3aTuE7ssaQ==}
-    engines: {node: '>=6'}
-
-  chalk@4.1.2:
-    resolution: {integrity: sha512-oKnbhFyRIXpUuez8iBMmyEa4nbj4IOQyuhc/wy9kY7/WVPcwIO9VA668Pu8RkO7+0G76SLROeyw9CpQ061i4mA==}
-    engines: {node: '>=10'}
-
-  chokidar@3.5.1:
-    resolution: {integrity: sha512-9+s+Od+W0VJJzawDma/gvBNQqkTiqYTWLuZoyAsivsI4AaWTCzHG06/TMjsf1cYe9Cb97UCEhjz7HvnPk2p/tw==}
-    engines: {node: '>= 8.10.0'}
-
-  clipboardy@2.3.0:
-    resolution: {integrity: sha512-mKhiIL2DrQIsuXMgBgnfEHOZOryC7kY7YO//TN6c63wlEm3NG5tz+YgY5rVi29KCmq/QQjKYvM7a19+MDOTHOQ==}
-    engines: {node: '>=8'}
-
-  color-convert@2.0.1:
-    resolution: {integrity: sha512-RRECPsj7iu/xb5oKYcsFHSppFNnsj/52OVTRKb4zP5onXwVF3zVmmToNcOfGC+CRDpfK/U584fMg38ZHCaElKQ==}
-    engines: {node: '>=7.0.0'}
-
-  color-name@1.1.4:
-    resolution: {integrity: sha512-dOy+3AuW3a2wNbZHIuMZpTcgjGuLU/uBL/ubcZF9OXbDo8ff4O8yVp5Bf0efS8uEoYo5q4Fx7dY9OgQGXgAsQA==}
-
-  concat-map@0.0.1:
-    resolution: {integrity: sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg==}
-
-  core-js@3.47.0:
-    resolution: {integrity: sha512-c3Q2VVkGAUyupsjRnaNX6u8Dq2vAdzm9iuPj5FW0fRxzlxgq9Q39MDq10IvmQSpLgHQNyQzQmOo6bgGHmH3NNg==}
-
-  core-js@3.6.5:
-    resolution: {integrity: sha512-vZVEEwZoIsI+vPEuoF9Iqf5H7/M3eeQqWlQnYa8FSKKePuYTf5MWnxb5SDAzCa60b3JBRS5g9b+Dq7b1y/RCrA==}
-    deprecated: core-js@<3.23.3 is no longer maintained and not recommended for usage due to the number of issues. Because of the V8 engine whims, feature detection in old core-js versions could cause a slowdown up to 100x even if nothing is polyfilled. Some versions have web compatibility issues. Please, upgrade your dependencies to the actual version of core-js.
-
-  cross-spawn@6.0.6:
-    resolution: {integrity: sha512-VqCUuhcd1iB+dsv8gxPttb5iZh/D0iubSP21g36KXdEuf6I5JiioesUVjpCdHV9MZRUfVFlvwtIUyPfxo5trtw==}
-    engines: {node: '>=4.8'}
-
-  cross-spawn@7.0.6:
-    resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
-    engines: {node: '>= 8'}
-
-  csstype@3.2.3:
-    resolution: {integrity: sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==}
-
-  debug@4.4.3:
-    resolution: {integrity: sha512-RGwwWnwQvkVfavKVt22FGLw+xYSdzARwm0ru6DhTVA3umU5hZc28V3kO4stgYryrTlLpuvgI9GiijltAjNbcqA==}
-    engines: {node: '>=6.0'}
-    peerDependencies:
-      supports-color: '*'
-    peerDependenciesMeta:
-      supports-color:
-        optional: true
-
-  decode-uri-component@0.2.2:
-    resolution: {integrity: sha512-FqUYQ+8o158GyGTrMFJms9qh3CqTKvAqgqsTnkLI8sKu0028orqBhxNMFkFen0zGyg6epACD32pjVk58ngIErQ==}
-    engines: {node: '>=0.10'}
-
-  deep-is@0.1.4:
-    resolution: {integrity: sha512-oIPzksmTg4/MriiaYGO+okXDT7ztn/w3Eptv/+gSIdMdKsJo0u4CfYNFJPy+4SKMuCqGw2wxnA+URMg3t8a/bQ==}
-
-  deepmerge@1.5.2:
-    resolution: {integrity: sha512-95k0GDqvBjZavkuvzx/YqVLv/6YYa17fz6ILMSf7neqQITCPbnfEnQvEgMPNjH4kgobe7+WIL0yJEHku+H3qtQ==}
-    engines: {node: '>=0.10.0'}
-
-  end-of-stream@1.4.5:
-    resolution: {integrity: sha512-ooEGc6HP26xXq/N+GCGOT0JKCLDGrq2bQUZrQ7gyrJiZANJ/8YDTxTpQBXGMn+WbIQXNVpyWymm7KYVICQnyOg==}
-
-  esbuild@0.12.15:
-    resolution: {integrity: sha512-72V4JNd2+48eOVCXx49xoSWHgC3/cCy96e7mbXKY+WOWghN00cCmlGnwVLRhRHorvv0dgCyuMYBZlM2xDM5OQw==}
-    hasBin: true
-
-  escape-string-regexp@4.0.0:
-    resolution: {integrity: sha512-TtpcNJ3XAzx3Gq8sWRzJaVajRs0uVxA2YAkdb1jm2YkPz4G6egUFAyA3n5vtEIZefPk5Wa4UXbKuS5fKkJWdgA==}
-    engines: {node: '>=10'}
-
-  eslint-scope@8.4.0:
-    resolution: {integrity: sha512-sNXOfKCn74rt8RICKMvJS7XKV/Xk9kA7DyJr8mJik3S7Cwgy3qlkkmyS2uQB3jiJg6VNdZd/pDBJu0nvG2NlTg==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-
-  eslint-visitor-keys@3.4.3:
-    resolution: {integrity: sha512-wpc+LXeiyiisxPlEkUzU6svyS1frIO3Mgxj1fdy7Pm8Ygzguax2N3Fa/D/ag1WqbOprdI+uY6wMUl8/a2G+iag==}
-    engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
-
-  eslint-visitor-keys@4.2.1:
-    resolution: {integrity: sha512-Uhdk5sfqcee/9H/rCOJikYz67o0a2Tw2hGRPOG2Y1R2dg7brRe1uG0yaNQDHu+TO/uQPF/5eCapvYSmHUjt7JQ==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-
-  eslint-visitor-keys@5.0.1:
-    resolution: {integrity: sha512-tD40eHxA35h0PEIZNeIjkHoDR4YjjJp34biM0mDvplBe//mB+IHCqHDGV7pxF+7MklTvighcCPPZC7ynWyjdTA==}
-    engines: {node: ^20.19.0 || ^22.13.0 || >=24}
-
-  eslint@9.39.4:
-    resolution: {integrity: sha512-XoMjdBOwe/esVgEvLmNsD3IRHkm7fbKIUGvrleloJXUZgDHig2IPWNniv+GwjyJXzuNqVjlr5+4yVUZjycJwfQ==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-    hasBin: true
-    peerDependencies:
-      jiti: '*'
-    peerDependenciesMeta:
-      jiti:
-        optional: true
-
-  espree@10.4.0:
-    resolution: {integrity: sha512-j6PAQ2uUr79PZhBjP5C5fhl8e39FmRnOjsD5lGnWrFU8i2G776tBK7+nP8KuQUTTyAZUwfQqXAgrVH5MbH9CYQ==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-
-  esquery@1.7.0:
-    resolution: {integrity: sha512-Ap6G0WQwcU/LHsvLwON1fAQX9Zp0A2Y6Y/cJBl9r/JbW90Zyg4/zbG6zzKa2OTALELarYHmKu0GhpM5EO+7T0g==}
-    engines: {node: '>=0.10'}
-
-  esrecurse@4.3.0:
-    resolution: {integrity: sha512-KmfKL3b6G+RXvP8N1vr3Tq1kL/oCFgn2NYXEtqP8/L3pKapUA4G8cFVaoF3SU323CD4XypR/ffioHmkti6/Tag==}
-    engines: {node: '>=4.0'}
-
-  estraverse@5.3.0:
-    resolution: {integrity: sha512-MMdARuVEQziNTeJD8DgMqmhwR11BRQ/cBP+pLtYdSTnf3MIO8fFeiINEbX36ZdNlfU/7A9f3gUw49B3oQsvwBA==}
-    engines: {node: '>=4.0'}
-
-  esutils@2.0.3:
-    resolution: {integrity: sha512-kVscqXk4OCp68SZ0dkgEKVi6/8ij300KBWTJq32P/dYeWTSwK41WyTxalN1eRmA5Z9UU/LX9D7FWSmV9SAYx6g==}
-    engines: {node: '>=0.10.0'}
-
-  execa@1.0.0:
-    resolution: {integrity: sha512-adbxcyWV46qiHyvSp50TKt05tB4tK3HcmF7/nxfAdhnox83seTDbwnaqKO4sXRy7roHAIFqJP/Rw/AuEbX61LA==}
-    engines: {node: '>=6'}
-
-  fast-deep-equal@3.1.3:
-    resolution: {integrity: sha512-f3qQ9oQy9j2AhBe/H9VC91wLmKBCCU/gDOnKNAYG5hswO7BLKj09Hc5HYNz9cGI++xlpDCIgDaitVs03ATR84Q==}
-
-  fast-json-stable-stringify@2.1.0:
-    resolution: {integrity: sha512-lhd/wF+Lk98HZoTCtlVraHtfh5XYijIjalXck7saUtuanSDyLMxnHhSXEDJqHxD7msR8D0uCmqlkwjCV8xvwHw==}
-
-  fast-levenshtein@2.0.6:
-    resolution: {integrity: sha512-DCXu6Ifhqcks7TZKY3Hxp3y6qphY5SJZmrWMDrKcERSOXWQdMhU9Ig/PYrzyw/ul9jOIyh0N4M0tbC5hodg8dw==}
-
-  fdir@6.5.0:
-    resolution: {integrity: sha512-tIbYtZbucOs0BRGqPJkshJUYdL+SDH7dVM8gjy+ERp3WAUjLEFJE+02kanyHtwjWOnwrKYBiwAmM0p4kLJAnXg==}
-    engines: {node: '>=12.0.0'}
-    peerDependencies:
-      picomatch: ^3 || ^4
-    peerDependenciesMeta:
-      picomatch:
-        optional: true
-
-  file-entry-cache@8.0.0:
-    resolution: {integrity: sha512-XXTUwCvisa5oacNGRP9SfNtYBNAMi+RPwBFmblZEF7N7swHYQS6/Zfk7SRwx4D5j3CH211YNRco1DEMNVfZCnQ==}
-    engines: {node: '>=16.0.0'}
-
-  fill-range@7.1.1:
-    resolution: {integrity: sha512-YsGpe3WHLK8ZYi4tWDg2Jy3ebRz2rXowDxnld4bkQB00cc/1Zw9AWnC0i9ztDJitivtQvaI9KaLyKrc+hBW0yg==}
-    engines: {node: '>=8'}
-
-  filter-obj@1.1.0:
-    resolution: {integrity: sha512-8rXg1ZnX7xzy2NGDVkBVaAy+lSlPNwad13BtgSlLuxfIslyt5Vg64U7tFcCt4WS1R0hvtnQybT/IyCkGZ3DpXQ==}
-    engines: {node: '>=0.10.0'}
-
-  find-up@5.0.0:
-    resolution: {integrity: sha512-78/PXT1wlLLDgTzDs7sjq9hzz0vXD+zn+7wypEe4fXQxCmdmqfGsEPQxmiCSQI3ajFV91bVSsvNtrJRiW6nGng==}
-    engines: {node: '>=10'}
-
-  flat-cache@4.0.1:
-    resolution: {integrity: sha512-f7ccFPK3SXFHpx15UIGyRJ/FJQctuKZ0zVuN3frBo4HnK3cay9VEW0R6yPYFHC0AgqhukPzKjq22t5DmAyqGyw==}
-    engines: {node: '>=16'}
-
-  flatted@3.4.2:
-    resolution: {integrity: sha512-PjDse7RzhcPkIJwy5t7KPWQSZ9cAbzQXcafsetQoD7sOJRQlGikNbx7yZp2OotDnJyrDcbyRq3Ttb18iYOqkxA==}
-
-  fs-extra@11.3.4:
-    resolution: {integrity: sha512-CTXd6rk/M3/ULNQj8FBqBWHYBVYybQ3VPBw0xGKFe3tuH7ytT6ACnvzpIQ3UZtB8yvUKC2cXn1a+x+5EVQLovA==}
-    engines: {node: '>=14.14'}
-
-  fsevents@2.3.3:
-    resolution: {integrity: sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==}
-    engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
-    os: [darwin]
-
-  get-stream@4.1.0:
-    resolution: {integrity: sha512-GMat4EJ5161kIy2HevLlr4luNjBgvmj413KaQA7jt4V8B4RDsfpHk7WQ9GVqfYyyx8OS/L66Kox+rJRNklLK7w==}
-    engines: {node: '>=6'}
-
-  glob-parent@5.1.2:
-    resolution: {integrity: sha512-AOIgSQCepiJYwP3ARnGx+5VnTu2HBYdzbGP45eLw1vr3zB3vZLeyed1sC9hnbcOc9/SrMyM5RPQrkGz4aS9Zow==}
-    engines: {node: '>= 6'}
-
-  glob-parent@6.0.2:
-    resolution: {integrity: sha512-XxwI8EOhVQgWp6iDL+3b0r86f4d6AX6zSU55HfB4ydCEuXLXc5FcYeOu+nnGftS4TEju/11rt4KJPTMgbfmv4A==}
-    engines: {node: '>=10.13.0'}
-
-  globals@14.0.0:
-    resolution: {integrity: sha512-oahGvuMGQlPw/ivIYBjVSrWAfWLBeku5tpPE2fOPLi+WHffIWbuh2tCjhyQhTBPMf5E9jDEH4FOmTYgYwbKwtQ==}
-    engines: {node: '>=18'}
-
-  globals@17.4.0:
-    resolution: {integrity: sha512-hjrNztw/VajQwOLsMNT1cbJiH2muO3OROCHnbehc8eY5JyD2gqz4AcMHPqgaOR59DjgUjYAYLeH699g/eWi2jw==}
-    engines: {node: '>=18'}
-
-  graceful-fs@4.2.11:
-    resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
-
-  has-flag@3.0.0:
-    resolution: {integrity: sha512-sKJf1+ceQBr4SMkvQnBDNDtf4TXpVhVGateu0t918bl30FnbE2m4vNLX+VWe/dpjlb+HugGYzW7uQXH98HPEYw==}
-    engines: {node: '>=4'}
-
-  has-flag@4.0.0:
-    resolution: {integrity: sha512-EykJT/Q1KjTWctppgIAgfSO0tKVuZUjhgMr17kqTumMl6Afv3EISleU7qZUzoXDFTAHTDC4NOoG/ZxU3EvlMPQ==}
-    engines: {node: '>=8'}
-
-  history-with-query@4.10.4:
-    resolution: {integrity: sha512-JnskQK8X+PbRFHSdDAExhoJyhLnlLZL+UuHQuQhys+Se9/ukRDRBWU4JVTjsiIfbv1fcEmR3oqKW56OYmk5M5w==}
-
-  history@4.10.1:
-    resolution: {integrity: sha512-36nwAD620w12kuzPAsyINPWJqlNbij+hpK1k9XRloDtym8mxzGYl2c17LnV6IAGB2Dmg4tEa7G7DlawS0+qjew==}
-
-  history@5.3.0:
-    resolution: {integrity: sha512-ZqaKwjjrAYUYfLG+htGaIIZ4nioX2L70ZUMIFysS3xvBsSG4x/n1V6TXV3N8ZYNuFGlDirFg32T7B6WOUPDYcQ==}
-
-  hoist-non-react-statics@3.3.2:
-    resolution: {integrity: sha512-/gGivxi8JPKWNm/W0jSmzcMPpfpPLc3dY/6GxhX2hQ9iGj3aDfklV4ET7NjKpSinLpJ5vafa9iiGIEZg10SfBw==}
-
-  ignore@5.3.2:
-    resolution: {integrity: sha512-hsBTNUqQTDwkWtcdYI2i06Y/nUBEsNEDJKjWdigLvegy8kDuJAS8uRlpkkcQpyEXL0Z/pjDy5HBmMjRCJ2gq+g==}
-    engines: {node: '>= 4'}
-
-  ignore@7.0.5:
-    resolution: {integrity: sha512-Hs59xBNfUIunMFgWAbGX5cq6893IbWg4KnrjbYwX3tx0ztorVgTDA6B2sxf8ejHJ4wz8BqGUMYlnzNBer5NvGg==}
-    engines: {node: '>= 4'}
-
-  import-fresh@3.3.1:
-    resolution: {integrity: sha512-TR3KfrTZTYLPB6jUjfx6MF9WcWrHL9su5TObK4ZkYgBdWKPOFoSoQIdEuTuR82pmtxH2spWG9h6etwfr1pLBqQ==}
-    engines: {node: '>=6'}
-
-  imurmurhash@0.1.4:
-    resolution: {integrity: sha512-JmXMZ6wuvDmLiHEml9ykzqO6lwFbof0GG4IkcGaENdCRDDmMVnny7s5HsIgHCbaq0w2MyPhDqkhTUgS2LU2PHA==}
-    engines: {node: '>=0.8.19'}
-
-  is-binary-path@2.1.0:
-    resolution: {integrity: sha512-ZMERYes6pDydyuGidse7OsHxtbI7WVeUEozgR/g7rd0xUimYNlvZRE/K2MgZTjWy725IfelLeVcEM97mmtRGXw==}
-    engines: {node: '>=8'}
-
-  is-docker@2.2.1:
-    resolution: {integrity: sha512-F+i2BKsFrH66iaUFc0woD8sLy8getkwTwtOBjvs56Cx4CgJDeKQeqfz8wAYiSb8JOprWhHH5p77PbmYCvvUuXQ==}
-    engines: {node: '>=8'}
-    hasBin: true
-
-  is-extglob@2.1.1:
-    resolution: {integrity: sha512-SbKbANkN603Vi4jEZv49LeVJMn4yGwsbzZworEoyEiutsN3nJYdbO36zfhGJ6QEDpOZIFkDtnq5JRxmvl3jsoQ==}
-    engines: {node: '>=0.10.0'}
-
-  is-glob@4.0.3:
-    resolution: {integrity: sha512-xelSayHH36ZgE7ZWhli7pW34hNbNl8Ojv5KVmkJD4hBdD3th8Tfk9vYasLM+mXWOZhFkgZfxhLSnrwRr4elSSg==}
-    engines: {node: '>=0.10.0'}
-
-  is-number@7.0.0:
-    resolution: {integrity: sha512-41Cifkg6e8TylSpdtTpeLVMqvSBEVzTttHvERD741+pnZ8ANv0004MRL43QKPDlK9cGvNp6NZWZUBlbGXYxxng==}
-    engines: {node: '>=0.12.0'}
-
-  is-stream@1.1.0:
-    resolution: {integrity: sha512-uQPm8kcs47jx38atAcWTVxyltQYoPT68y9aWYdV6yWXSyW8mzSat0TL6CiWdZeCdF3KrAvpVtnHbTv4RN+rqdQ==}
-    engines: {node: '>=0.10.0'}
-
-  is-wsl@2.2.0:
-    resolution: {integrity: sha512-fKzAra0rGJUUBwGBgNkHZuToZcn+TtXHpeCgmkMJMMYx1sQDYaCSyjJBSCa2nH1DGm7s3n1oBnohoVTBaN7Lww==}
-    engines: {node: '>=8'}
-
-  isarray@0.0.1:
-    resolution: {integrity: sha512-D2S+3GLxWH+uhrNEcoh/fnmYeP8E8/zHl644d/jdA0g2uyXvy3sb0qxotE+ne0LtccHknQzWwZEzhak7oJ0COQ==}
-
-  isexe@2.0.0:
-    resolution: {integrity: sha512-RHxMLp9lnKHGHRng9QFhRCMbYAcVpn69smSGcq3f36xjgVVWThj4qqLbTLlq7Ssj8B+fIQ1EuCEGI2lKsyQeIw==}
-
-  javascript-stringify@2.1.0:
-    resolution: {integrity: sha512-JVAfqNPTvNq3sB/VHQJAFxN/sPgKnsKrCwyRt15zwNCdrMMJDdcEOdubuy+DuJYYdm0ox1J4uzEuYKkN+9yhVg==}
-
-  jest-worker@24.9.0:
-    resolution: {integrity: sha512-51PE4haMSXcHohnSMdM42anbvZANYTqMrr52tVKPqqsPJMzoP6FYYDVqahX/HrAoKEKz3uUPzSvKs9A3qR4iVw==}
-    engines: {node: '>= 6'}
-
-  jiti@2.6.1:
-    resolution: {integrity: sha512-ekilCSN1jwRvIbgeg/57YFh8qQDNbwDb9xT/qu2DAHbFFZUicIl4ygVaAvzveMhMVr3LnpSKTNnwt8PoOfmKhQ==}
-    hasBin: true
-
-  js-tokens@4.0.0:
-    resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
-
-  js-yaml@4.1.1:
-    resolution: {integrity: sha512-qQKT4zQxXl8lLwBtHMWwaTcGfFOZviOJet3Oy/xmGk2gZH677CJM9EvtfdSkgWcATZhj/55JZ0rmy3myCT5lsA==}
-    hasBin: true
-
-  json-buffer@3.0.1:
-    resolution: {integrity: sha512-4bV5BfR2mqfQTJm+V5tPPdf+ZpuhiIvTuAB5g8kcrXOZpTT/QwwVRWBywX1ozr6lEuPdbHxwaJlm9G6mI2sfSQ==}
-
-  json-schema-traverse@0.4.1:
-    resolution: {integrity: sha512-xbbCH5dCYU5T8LcEhhuh7HJ88HXuW3qsI3Y0zOZFKfZEHcpWiHU/Jxzk629Brsab/mMiHQti9wMP+845RPe3Vg==}
-
-  json-stable-stringify-without-jsonify@1.0.1:
-    resolution: {integrity: sha512-Bdboy+l7tA3OGW6FjyFHWkP5LuByj1Tk33Ljyq0axyzdk9//JSi2u3fP1QSmd1KNwq6VOKYGlAu87CisVir6Pw==}
-
-  jsonfile@6.2.0:
-    resolution: {integrity: sha512-FGuPw30AdOIUTRMC2OMRtQV+jkVj2cfPqSeWXv1NEAJ1qZ5zb1X6z1mFhbfOB/iy3ssJCD+3KuZ8r8C3uVFlAg==}
-
-  keyv@4.5.4:
-    resolution: {integrity: sha512-oxVHkHR/EJf2CNXnWxRLW6mg7JyCCUcG0DtEGmL2ctUo1PNTin1PUil+r/+4r5MpVgC/fn1kjsx7mjSujKqIpw==}
-
-  levn@0.4.1:
-    resolution: {integrity: sha512-+bT2uH4E5LGE7h/n3evcS/sQlJXCpIp6ym8OWJ5eV6+67Dsql/LaaT7qJBAt2rzfoa/5QBGBhxDix1dMt2kQKQ==}
-    engines: {node: '>= 0.8.0'}
-
-  locate-path@6.0.0:
-    resolution: {integrity: sha512-iPZK6eYjbxRu3uB4/WZ3EsEIMJFMqAoopl3R+zuq0UjcAm/MO6KCweDgPfP3elTztoKP3KtnVHxTn2NHBSDVUw==}
-    engines: {node: '>=10'}
-
-  lodash-es@4.17.23:
-    resolution: {integrity: sha512-kVI48u3PZr38HdYz98UmfPnXl2DXrpdctLrFLCd3kOx1xUkOmpFPx7gCWWM5MPkL/fD8zb+Ph0QzjGFs4+hHWg==}
-
-  lodash.merge@4.6.2:
-    resolution: {integrity: sha512-0KpjqXRVvrYyCsX1swR/XTK0va6VQkQM6MNo7PqW77ByjAhoARA8EfrP1N4+KlKj8YS0ZUCtRT/YUuhyYDujIQ==}
-
-  loose-envify@1.4.0:
-    resolution: {integrity: sha512-lyuxPGr/Wfhrlem2CL/UcnUc1zcqKAImBDzukY7Y5F/yQiNdko6+fRLevlw1HgMySw7f611UIY408EtxRSoK3Q==}
-    hasBin: true
-
-  merge-stream@2.0.0:
-    resolution: {integrity: sha512-abv/qOcuPfk3URPfDzmZU1LKmuw8kT+0nIHvKrKgFrwifol/doWcdA4ZqsWQ8ENrFKkd67Mfpo/LovbIUsbt3w==}
-
-  mini-create-react-context@0.4.1:
-    resolution: {integrity: sha512-YWCYEmd5CQeHGSAKrYvXgmzzkrvssZcuuQDDeqkT+PziKGMgE+0MCCtcKbROzocGBG1meBLl2FotlRwf4gAzbQ==}
-    deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
-    peerDependencies:
-      prop-types: ^15.0.0
-      react: ^0.14.0 || ^15.0.0 || ^16.0.0 || ^17.0.0
-
-  minimatch@10.2.4:
-    resolution: {integrity: sha512-oRjTw/97aTBN0RHbYCdtF1MQfvusSIBQM0IZEgzl6426+8jSC0nF1a/GmnVLpfB9yyr6g6FTqWqiZVbxrtaCIg==}
-    engines: {node: 18 || 20 || >=22}
-
-  minimatch@3.1.5:
-    resolution: {integrity: sha512-VgjWUsnnT6n+NUk6eZq77zeFdpW2LWDzP6zFGrCbHXiYNul5Dzqk2HHQ5uFH2DNW5Xbp8+jVzaeNt94ssEEl4w==}
-
-  ms@2.1.3:
-    resolution: {integrity: sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==}
-
-  natural-compare@1.4.0:
-    resolution: {integrity: sha512-OWND8ei3VtNC9h7V60qff3SVobHr996CTwgxubgyQYEpg290h9J0buyECNNJexkFm5sOajh5G116RYA1c8ZMSw==}
-
-  nice-try@1.0.5:
-    resolution: {integrity: sha512-1nh45deeb5olNY7eX82BkPO7SSxR5SSYJiPTrTdFUVYwAl8CKMA5N9PjTYkHiRjisVcxcQ1HXdLhx2qxxJzLNQ==}
-
-  normalize-path@3.0.0:
-    resolution: {integrity: sha512-6eZs5Ls3WtCisHWp9S2GUy8dqkpGi4BVSz3GaqiE6ezub0512ESztXUwUB6C6IKbQkY2Pnb/mD4WYojCRwcwLA==}
-    engines: {node: '>=0.10.0'}
-
-  npm-run-path@2.0.2:
-    resolution: {integrity: sha512-lJxZYlT4DW/bRUtFh1MQIWqmLwQfAxnqWG4HhEdjMlkrJYnJn0Jrr2u3mgxqaWsdiBc76TYkTG/mhrnYTuzfHw==}
-    engines: {node: '>=4'}
-
-  object-assign@4.1.1:
-    resolution: {integrity: sha512-rJgTQnkUnH1sFw8yT6VSU3zD3sWmu6sZhIseY8VX+GRu3P6F7Fu+JNDoXfklElbLJSnc3FUQHVe4cU5hj+BcUg==}
-    engines: {node: '>=0.10.0'}
-
-  once@1.4.0:
-    resolution: {integrity: sha512-lNaJgI+2Q5URQBkccEKHTQOPaXdUxnZZElQTZY0MFUAuaEqe1E+Nyvgdz/aIyNi6Z9MzO5dv1H8n58/GELp3+w==}
-
-  optionator@0.9.4:
-    resolution: {integrity: sha512-6IpQ7mKUxRcZNLIObR0hz7lxsapSSIYNZJwXPGeF0mTVqGKFIXj1DQcMoT22S3ROcLyY/rz0PWaWZ9ayWmad9g==}
-    engines: {node: '>= 0.8.0'}
-
-  p-finally@1.0.0:
-    resolution: {integrity: sha512-LICb2p9CB7FS+0eR1oqWnHhp0FljGLZCWBE9aix0Uye9W8LTQPwMTYVGWQWIw9RdQiDg4+epXQODwIYJtSJaow==}
-    engines: {node: '>=4'}
-
-  p-limit@3.1.0:
-    resolution: {integrity: sha512-TYOanM3wGwNGsZN2cVTYPArw454xnXj5qmWF1bEoAc4+cU/ol7GVh7odevjp1FNHduHc3KZMcFduxU5Xc6uJRQ==}
-    engines: {node: '>=10'}
-
-  p-locate@5.0.0:
-    resolution: {integrity: sha512-LaNjtRWUBY++zB5nE/NwcaoMylSPk+S+ZHNB1TzdbMJMny6dynpAGt7X/tl/QYq3TIeE6nxHppbo2LGymrG5Pw==}
-    engines: {node: '>=10'}
-
-  parent-module@1.0.1:
-    resolution: {integrity: sha512-GQ2EWRpQV8/o+Aw8YqtfZZPfNRWZYkbidE9k5rpl/hC3vtHHBfGm2Ifi6qWV+coDGkrUKZAxE3Lot5kcsRlh+g==}
-    engines: {node: '>=6'}
-
-  path-exists@4.0.0:
-    resolution: {integrity: sha512-ak9Qy5Q7jYb2Wwcey5Fpvg2KoAc/ZIhLSLOSBmRmygPsGwkVVt0fZa0qrtMz+m6tJTAHfZQ8FnmB4MG4LWy7/w==}
-    engines: {node: '>=8'}
-
-  path-key@2.0.1:
-    resolution: {integrity: sha512-fEHGKCSmUSDPv4uoj8AlD+joPlq3peND+HRYyxFz4KPw4z926S/b8rIuFs2FYJg3BwsxJf6A9/3eIdLaYC+9Dw==}
-    engines: {node: '>=4'}
-
-  path-key@3.1.1:
-    resolution: {integrity: sha512-ojmeN0qd+y0jszEtoY48r0Peq5dwMEkIlCOu6Q5f41lfkswXuKtYrhgoTpLnyIcHm24Uhqx+5Tqm2InSwLhE6Q==}
-    engines: {node: '>=8'}
-
-  path-to-regexp@1.9.0:
-    resolution: {integrity: sha512-xIp7/apCFJuUHdDLWe8O1HIkb0kQrOMb/0u6FXQjemHn/ii5LrIzU6bdECnsiTF/GjZkMEKg1xdiZwNqDYlZ6g==}
-
-  picomatch@2.3.1:
-    resolution: {integrity: sha512-JU3teHTNjmE2VCGFzuY8EXzCDVwEqB2a8fsIvwaStHhAWJEeVd1o1QD80CU6+ZdEXXSLbSsuLwJjkCBWqRQUVA==}
-    engines: {node: '>=8.6'}
-
-  picomatch@4.0.3:
-    resolution: {integrity: sha512-5gTmgEY/sqK6gFXLIsQNH19lWb4ebPDLA4SdLP7dsWkIXHWlG66oPuVvXSGFPppYZz8ZDZq0dYYrbHfBCVUb1Q==}
-    engines: {node: '>=12'}
-
-  prelude-ls@1.2.1:
-    resolution: {integrity: sha512-vkcDPrRZo1QZLbn5RLGPpg/WmIQ65qoWWhcGKf/b5eplkkarX0m9z8ppCat4mlOqUsWpyNuYgO3VRyrYHSzX5g==}
-    engines: {node: '>= 0.8.0'}
-
-  prettier@2.2.1:
-    resolution: {integrity: sha512-PqyhM2yCjg/oKkFPtTGUojv7gnZAoG80ttl45O6x2Ug/rMJw4wcc9k6aaf2hibP7BGVCCM33gZoGjyvt9mm16Q==}
-    engines: {node: '>=10.13.0'}
-    hasBin: true
-
-  prettier@3.8.1:
-    resolution: {integrity: sha512-UOnG6LftzbdaHZcKoPFtOcCKztrQ57WkHDeRD9t/PTQtmT0NHSeWWepj6pS0z/N7+08BHFDQVUrfmfMRcZwbMg==}
-    engines: {node: '>=14'}
-    hasBin: true
-
-  prop-types@15.8.1:
-    resolution: {integrity: sha512-oj87CgZICdulUohogVAR7AjlC0327U4el4L6eAvOqCeudMDVU0NThNaV+b9Df4dXgSP1gXMTnPdhfe/2qDH5cg==}
-
-  pump@3.0.4:
-    resolution: {integrity: sha512-VS7sjc6KR7e1ukRFhQSY5LM2uBWAUPiOPa/A3mkKmiMwSmRFUITt0xuj+/lesgnCv+dPIEYlkzrcyXgquIHMcA==}
-
-  punycode@2.3.1:
-    resolution: {integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==}
-    engines: {node: '>=6'}
-
-  query-string@6.14.1:
-    resolution: {integrity: sha512-XDxAeVmpfu1/6IjyT/gXHOl+S0vQ9owggJ30hhWKdHAsNPOcasn5o9BW0eejZqL2e4vMjhAxoW3jVHcD6mbcYw==}
-    engines: {node: '>=6'}
-
-  react-dom@17.0.2:
-    resolution: {integrity: sha512-s4h96KtLDUQlsENhMn1ar8t2bEa+q/YAtj8pPPdIjPDGBDIVNsrD9aXNWqspUe6AzKCIG0C1HZZLqLV7qpOBGA==}
-    peerDependencies:
-      react: 17.0.2
-
-  react-is@16.13.1:
-    resolution: {integrity: sha512-24e6ynE2H+OKt4kqsOvNd8kBpV65zoxbA4BVsEOB3ARVWQki/DHzaUoC5KuON/BiccDaCCTZBuOcfZs70kR8bQ==}
-
-  react-router-config@5.1.1:
-    resolution: {integrity: sha512-DuanZjaD8mQp1ppHjgnnUnyOlqYXZVjnov/JzFhjLEwd3Z4dYjMSnqrEzzGThH47vpCOqPPwJM2FtthLeJ8Pbg==}
-    peerDependencies:
-      react: '>=15'
-      react-router: '>=5'
-
-  react-router-dom@5.2.0:
-    resolution: {integrity: sha512-gxAmfylo2QUjcwxI63RhQ5G85Qqt4voZpUXSEqCwykV0baaOTQDR1f0PmY8AELqIyVc0NEZUj0Gov5lNGcXgsA==}
-    peerDependencies:
-      react: '>=15'
-
-  react-router@5.2.0:
-    resolution: {integrity: sha512-smz1DUuFHRKdcJC0jobGo8cVbhO3x50tCL4icacOlcwDOEQPq4TMqwx3sY1TP+DvtTgz4nm3thuo7A+BK2U0Dw==}
-    peerDependencies:
-      react: '>=15'
-
-  react@17.0.2:
-    resolution: {integrity: sha512-gnhPt75i/dq/z3/6q/0asP78D0u592D5L1pd7M8P+dck6Fu/jJeL6iVVK23fptSUZj8Vjf++7wXA8UNclGQcbA==}
-    engines: {node: '>=0.10.0'}
-
-  readdirp@3.5.0:
-    resolution: {integrity: sha512-cMhu7c/8rdhkHXWsY+osBhfSy0JikwpHK/5+imo+LpeasTF8ouErHrlYkwT0++njiyuDvc7OFY5T3ukvZ8qmFQ==}
-    engines: {node: '>=8.10.0'}
-
-  regenerate-unicode-properties@10.0.1:
-    resolution: {integrity: sha512-vn5DU6yg6h8hP/2OkQo3K7uVILvY4iu0oI4t3HFa81UPkhGJwkRwM10JEc3upjdhHjs/k8GJY1sRBhk5sr69Bw==}
-    engines: {node: '>=4'}
-
-  regenerate@1.4.2:
-    resolution: {integrity: sha512-zrceR/XhGYU/d/opr2EKO7aRHUeiBI8qjtfHqADTwZd6Szfy16la6kqD0MIUs5z5hx6AaKa+PixpPrR289+I0A==}
-
-  regenerator-runtime@0.13.11:
-    resolution: {integrity: sha512-kY1AZVr2Ra+t+piVaJ4gxaFaReZVH40AKNo7UCX6W+dEwBo/2oZJzqfuN1qLq1oL45o56cPaTXELwrTh8Fpggg==}
-
-  resolve-from@4.0.0:
-    resolution: {integrity: sha512-pb/MYmXstAkysRFx8piNI1tGFNQIFA3vkE3Gq4EuA1dF6gHp/+vgZqsCGJapvy8N3Q+4o7FwvquPJcnZ7RYy4g==}
-    engines: {node: '>=4'}
-
-  resolve-pathname@3.0.0:
-    resolution: {integrity: sha512-C7rARubxI8bXFNB/hqcp/4iUeIXJhJZvFPFPiSPRnhU5UPxzMFIl+2E6yY6c4k9giDJAhtV+enfA+G89N6Csng==}
-
-  rsbuild-plugin-dts@0.19.6:
-    resolution: {integrity: sha512-ehD3P432VJq6djxfAdWeWSUXPhEAnISlma2EXOSCZSzjerzRrG4H4f6WWw1sxN5qMQXgu5hLPqlUHsFZM9sEIg==}
-    engines: {node: '>=18.12.0'}
-    peerDependencies:
-      '@microsoft/api-extractor': ^7
-      '@rsbuild/core': 1.x
-      '@typescript/native-preview': 7.x
-      typescript: ^5
-    peerDependenciesMeta:
-      '@microsoft/api-extractor':
-        optional: true
-      '@typescript/native-preview':
-        optional: true
-      typescript:
-        optional: true
-
-  scheduler@0.20.2:
-    resolution: {integrity: sha512-2eWfGgAqqWFGqtdMmcL5zCMK1U8KlXv8SQFGglL3CEtd0aDVDWgeF/YoCmvln55m5zSk3J/20hTaSBeSObsQDQ==}
-
-  semver@5.7.2:
-    resolution: {integrity: sha512-cBznnQ9KjJqU67B52RMC65CMarK2600WFnbkcaiwWq3xy/5haFJlshgnpjovMVJ+Hff49d8GEn0b87C5pDQ10g==}
-    hasBin: true
-
-  semver@7.7.4:
-    resolution: {integrity: sha512-vFKC2IEtQnVhpT78h1Yp8wzwrf8CM+MzKMHGJZfBtzhZNycRFnXsHk6E5TxIkkMsgNS7mdX3AGB7x2QM2di4lA==}
-    engines: {node: '>=10'}
-    hasBin: true
-
-  shebang-command@1.2.0:
-    resolution: {integrity: sha512-EV3L1+UQWGor21OmnvojK36mhg+TyIKDh3iFBKBohr5xeXIhNBcx8oWdgkTEEQ+BEFFYdLRuqMfd5L84N1V5Vg==}
-    engines: {node: '>=0.10.0'}
-
-  shebang-command@2.0.0:
-    resolution: {integrity: sha512-kHxr2zZpYtdmrN1qDjrrX/Z1rR1kG8Dx+gkpK1G4eXmvXswmcE1hTWBWYUzlraYw1/yZp6YuDY77YtvbN0dmDA==}
-    engines: {node: '>=8'}
-
-  shebang-regex@1.0.0:
-    resolution: {integrity: sha512-wpoSFAxys6b2a2wHZ1XpDSgD7N9iVjg29Ph9uV/uaP9Ex/KXlkTZTeddxDPSYQpgvzKLGJke2UU0AzoGCjNIvQ==}
-    engines: {node: '>=0.10.0'}
-
-  shebang-regex@3.0.0:
-    resolution: {integrity: sha512-7++dFhtcx3353uBaq8DDR4NuxBetBzC7ZQOhmTQInHEd6bSrXdiEyzCvG07Z44UYdLShWUyXt5M/yhz8ekcb1A==}
-    engines: {node: '>=8'}
-
-  signal-exit@3.0.7:
-    resolution: {integrity: sha512-wnD2ZE+l+SPC/uoS0vXeE9L1+0wuaMqKlfz9AMUo38JsyLSBWSFcHR1Rri62LZc12vLr1gb3jl7iwQhgwpAbGQ==}
-
-  split-on-first@1.1.0:
-    resolution: {integrity: sha512-43ZssAJaMusuKWL8sKUBQXHWOpq8d6CfN/u1p4gUzfJkM05C8rxTmYrkIPTXapZpORA6LkkzcUulJ8FqA7Uudw==}
-    engines: {node: '>=6'}
-
-  strict-uri-encode@2.0.0:
-    resolution: {integrity: sha512-QwiXZgpRcKkhTj2Scnn++4PKtWsH0kpzZ62L2R6c/LUVYv7hVnZqcg2+sMuT6R7Jusu1vviK/MFsu6kNJfWlEQ==}
-    engines: {node: '>=4'}
-
-  strip-eof@1.0.0:
-    resolution: {integrity: sha512-7FCwGGmx8mD5xQd3RPUvnSpUXHM3BWuzjtpD4TXsfcZ9EL4azvVVUscFYwD9nx8Kh+uCBC00XBtAykoMHwTh8Q==}
-    engines: {node: '>=0.10.0'}
-
-  strip-json-comments@3.1.1:
-    resolution: {integrity: sha512-6fPc+R4ihwqP6N/aIv2f1gMH8lOVtWQHoqC4yK6oSDVVocumAsfCqjkXnqiYMhmMwS/mEHLp7Vehlt3ql6lEig==}
-    engines: {node: '>=8'}
-
-  supports-color@6.1.0:
-    resolution: {integrity: sha512-qe1jfm1Mg7Nq/NSh6XE24gPXROEVsWHxC1LIx//XNlD9iw7YZQGjZNjYN7xGaEG6iKdA8EtNFW6R0gjnVXp+wQ==}
-    engines: {node: '>=6'}
-
-  supports-color@7.2.0:
-    resolution: {integrity: sha512-qpCAvRl9stuOHveKsn7HncJRvv501qIacKzQlO/+Lwxc9+0q2wLyv4Dfvt80/DPn2pqOBsJdDiogXGR9+OvwRw==}
-    engines: {node: '>=8'}
-
-  tiny-invariant@1.3.3:
-    resolution: {integrity: sha512-+FbBPE1o9QAYvviau/qC5SE3caw21q3xkvWKBtja5vgqOWIHHJ3ioaq1VPfn/Szqctz2bU/oYeKd9/z5BL+PVg==}
-
-  tiny-warning@1.0.3:
-    resolution: {integrity: sha512-lBN9zLN/oAf68o3zNXYrdCt1kP8WsiGW8Oo2ka41b2IM5JL/S1CTyX1rW0mb/zSuJun0ZUrDxx4sqvYS2FWzPA==}
-
-  tinyglobby@0.2.15:
-    resolution: {integrity: sha512-j2Zq4NyQYG5XMST4cbs02Ak8iJUdxRM0XI5QyxXuZOzKOINmWurp3smXu3y5wDcJrptwpSjgXHzIQxR0omXljQ==}
-    engines: {node: '>=12.0.0'}
-
-  tinypool@1.1.1:
-    resolution: {integrity: sha512-Zba82s87IFq9A9XmjiX5uZA/ARWDrB03OHlq+Vw1fSdt0I+4/Kutwy8BP4Y/y/aORMo61FQ0vIb5j44vSo5Pkg==}
-    engines: {node: ^18.0.0 || >=20.0.0}
-
-  to-regex-range@5.0.1:
-    resolution: {integrity: sha512-65P7iz6X5yEr1cwcgvQxbbIw7Uk3gOy5dIdtZ4rDveLqhrdJP+Li/Hx6tyK0NEb+2GCyneCMJiGqrADCSNk8sQ==}
-    engines: {node: '>=8.0'}
-
-  ts-api-utils@2.4.0:
-    resolution: {integrity: sha512-3TaVTaAv2gTiMB35i3FiGJaRfwb3Pyn/j3m/bfAvGe8FB7CF6u+LMYqYlDh7reQf7UNvoTvdfAqHGmPGOSsPmA==}
-    engines: {node: '>=18.12'}
-    peerDependencies:
-      typescript: '>=4.8.4'
-
-  tslib@2.8.1:
-    resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
-
-  type-check@0.4.0:
-    resolution: {integrity: sha512-XleUoc9uwGXqjWwXaUTZAmzMcFZ5858QA2vvx1Ur5xIcixXIP+8LnFDgRplU30us6teqdlskFfu+ae4K79Ooew==}
-    engines: {node: '>= 0.8.0'}
-
-  typescript-eslint@8.57.1:
-    resolution: {integrity: sha512-fLvZWf+cAGw3tqMCYzGIU6yR8K+Y9NT2z23RwOjlNFF2HwSB3KhdEFI5lSBv8tNmFkkBShSjsCjzx1vahZfISA==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-    peerDependencies:
-      eslint: ^8.57.0 || ^9.0.0 || ^10.0.0
-      typescript: '>=4.8.4 <6.0.0'
-
-  typescript@5.9.3:
-    resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
-    engines: {node: '>=14.17'}
-    hasBin: true
-
-  undici-types@7.16.0:
-    resolution: {integrity: sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw==}
-
-  universalify@2.0.1:
-    resolution: {integrity: sha512-gptHNQghINnc/vTGIk0SOFGFNXw7JVrlRUtConJRlvaw6DuX0wO5Jeko9sWrMBhh+PsYAZ7oXAiOnf/UKogyiw==}
-    engines: {node: '>= 10.0.0'}
-
-  uri-js@4.4.1:
-    resolution: {integrity: sha512-7rKUyy33Q1yc98pQ1DAmLtwX109F7TIfWlW1Ydo8Wl1ii1SeHieeh0HHfPeL2fMXK6z0s8ecKs9frCuLJvndBg==}
-
-  use-subscription@1.5.1:
-    resolution: {integrity: sha512-Xv2a1P/yReAjAbhylMfFplFKj9GssgTwN7RlcTxBujFQcloStWNDQdc4g4NRWH9xS4i/FDk04vQBptAXoF3VcA==}
-    peerDependencies:
-      react: ^16.8.0 || ^17.0.0
-
-  value-equal@1.0.1:
-    resolution: {integrity: sha512-NOJ6JZCAWr0zlxZt+xqCHNTEKOsrks2HQd4MqhP1qy4z1SkbEP467eNx6TgDKXMvUOb+OENfJCZwM+16n7fRfw==}
-
-  webpack-chain@6.5.1:
-    resolution: {integrity: sha512-7doO/SRtLu8q5WM0s7vPKPWX580qhi0/yBHkOxNkv50f6qB76Zy9o2wRTrrPULqYTvQlVHuvbA8v+G5ayuUDsA==}
-    engines: {node: '>=8'}
-    deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
-
-  which@1.3.1:
-    resolution: {integrity: sha512-HxJdYWq1MTIQbJ3nw0cqssHoTNU267KlrDuGZ1WYlxDStUtKUhOaJmh112/TZmHxxUfuJqPXSOm7tDyas0OSIQ==}
-    hasBin: true
-
-  which@2.0.2:
-    resolution: {integrity: sha512-BLI3Tl1TW3Pvl70l3yq3Y64i+awpwXqsGBYWkkqMtnbXgrMD+yj7rhW0kuEDxzJaYXGjEW5ogapKNMEKNMjibA==}
-    engines: {node: '>= 8'}
-    hasBin: true
-
-  word-wrap@1.2.5:
-    resolution: {integrity: sha512-BN22B5eaMMI9UMtjrGd5g5eCYPpCPDUy0FJXbYsaT5zYxjFOckS53SQDE3pWkVoWpHXVb3BrYcEN4Twa55B5cA==}
-    engines: {node: '>=0.10.0'}
-
-  wrappy@1.0.2:
-    resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
-
-  yocto-queue@0.1.0:
-    resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
-    engines: {node: '>=10'}
-
-snapshots:
-
-  '@ast-grep/napi-darwin-arm64@0.37.0':
-    optional: true
-
-  '@ast-grep/napi-darwin-x64@0.37.0':
-    optional: true
-
-  '@ast-grep/napi-linux-arm64-gnu@0.37.0':
-    optional: true
-
-  '@ast-grep/napi-linux-arm64-musl@0.37.0':
-    optional: true
-
-  '@ast-grep/napi-linux-x64-gnu@0.37.0':
-    optional: true
-
-  '@ast-grep/napi-linux-x64-musl@0.37.0':
-    optional: true
-
-  '@ast-grep/napi-win32-arm64-msvc@0.37.0':
-    optional: true
-
-  '@ast-grep/napi-win32-ia32-msvc@0.37.0':
-    optional: true
-
-  '@ast-grep/napi-win32-x64-msvc@0.37.0':
-    optional: true
-
-  '@ast-grep/napi@0.37.0':
-    optionalDependencies:
-      '@ast-grep/napi-darwin-arm64': 0.37.0
-      '@ast-grep/napi-darwin-x64': 0.37.0
-      '@ast-grep/napi-linux-arm64-gnu': 0.37.0
-      '@ast-grep/napi-linux-arm64-musl': 0.37.0
-      '@ast-grep/napi-linux-x64-gnu': 0.37.0
-      '@ast-grep/napi-linux-x64-musl': 0.37.0
-      '@ast-grep/napi-win32-arm64-msvc': 0.37.0
-      '@ast-grep/napi-win32-ia32-msvc': 0.37.0
-      '@ast-grep/napi-win32-x64-msvc': 0.37.0
-
-  '@babel/runtime@7.18.6':
-    dependencies:
-      regenerator-runtime: 0.13.11
-
-  '@babel/runtime@7.29.2': {}
-
-  '@bloomberg/record-tuple-polyfill@0.0.3': {}
-
-  '@emnapi/core@1.9.0':
-    dependencies:
-      '@emnapi/wasi-threads': 1.2.0
-      tslib: 2.8.1
-    optional: true
-
-  '@emnapi/runtime@1.9.0':
-    dependencies:
-      tslib: 2.8.1
-    optional: true
-
-  '@emnapi/wasi-threads@1.2.0':
-    dependencies:
-      tslib: 2.8.1
-    optional: true
-
-  '@eslint-community/eslint-utils@4.9.1(eslint@9.39.4(jiti@2.6.1))':
-    dependencies:
-      eslint: 9.39.4(jiti@2.6.1)
-      eslint-visitor-keys: 3.4.3
-
-  '@eslint-community/regexpp@4.12.2': {}
-
-  '@eslint/config-array@0.21.2':
-    dependencies:
-      '@eslint/object-schema': 2.1.7
-      debug: 4.4.3
-      minimatch: 3.1.5
-    transitivePeerDependencies:
-      - supports-color
-
-  '@eslint/config-helpers@0.4.2':
-    dependencies:
-      '@eslint/core': 0.17.0
-
-  '@eslint/core@0.17.0':
-    dependencies:
-      '@types/json-schema': 7.0.15
-
-  '@eslint/eslintrc@3.3.5':
-    dependencies:
-      ajv: 6.14.0
-      debug: 4.4.3
-      espree: 10.4.0
-      globals: 14.0.0
-      ignore: 5.3.2
-      import-fresh: 3.3.1
-      js-yaml: 4.1.1
-      minimatch: 3.1.5
-      strip-json-comments: 3.1.1
-    transitivePeerDependencies:
-      - supports-color
-
-  '@eslint/js@9.39.4': {}
-
-  '@eslint/object-schema@2.1.7': {}
-
-  '@eslint/plugin-kit@0.4.1':
-    dependencies:
-      '@eslint/core': 0.17.0
-      levn: 0.4.1
-
-  '@humanfs/core@0.19.1': {}
-
-  '@humanfs/node@0.16.7':
-    dependencies:
-      '@humanfs/core': 0.19.1
-      '@humanwhocodes/retry': 0.4.3
-
-  '@humanwhocodes/module-importer@1.0.1': {}
-
-  '@humanwhocodes/retry@0.4.3': {}
-
-  '@module-federation/error-codes@0.22.0': {}
-
-  '@module-federation/runtime-core@0.22.0':
-    dependencies:
-      '@module-federation/error-codes': 0.22.0
-      '@module-federation/sdk': 0.22.0
-
-  '@module-federation/runtime-tools@0.22.0':
-    dependencies:
-      '@module-federation/runtime': 0.22.0
-      '@module-federation/webpack-bundler-runtime': 0.22.0
-
-  '@module-federation/runtime@0.22.0':
-    dependencies:
-      '@module-federation/error-codes': 0.22.0
-      '@module-federation/runtime-core': 0.22.0
-      '@module-federation/sdk': 0.22.0
-
-  '@module-federation/sdk@0.22.0': {}
-
-  '@module-federation/webpack-bundler-runtime@0.22.0':
-    dependencies:
-      '@module-federation/runtime': 0.22.0
-      '@module-federation/sdk': 0.22.0
-
-  '@napi-rs/wasm-runtime@1.0.7':
-    dependencies:
-      '@emnapi/core': 1.9.0
-      '@emnapi/runtime': 1.9.0
-      '@tybys/wasm-util': 0.10.1
-    optional: true
-
-  '@rsbuild/core@1.7.3':
-    dependencies:
-      '@rspack/core': 1.7.9(@swc/helpers@0.5.19)
-      '@rspack/lite-tapable': 1.1.0
-      '@swc/helpers': 0.5.19
-      core-js: 3.47.0
-      jiti: 2.6.1
-
-  '@rslib/core@0.19.6(typescript@5.9.3)':
-    dependencies:
-      '@rsbuild/core': 1.7.3
-      rsbuild-plugin-dts: 0.19.6(@rsbuild/core@1.7.3)(typescript@5.9.3)
-    optionalDependencies:
-      typescript: 5.9.3
-    transitivePeerDependencies:
-      - '@typescript/native-preview'
-
-  '@rspack/binding-darwin-arm64@1.7.9':
-    optional: true
-
-  '@rspack/binding-darwin-x64@1.7.9':
-    optional: true
-
-  '@rspack/binding-linux-arm64-gnu@1.7.9':
-    optional: true
-
-  '@rspack/binding-linux-arm64-musl@1.7.9':
-    optional: true
-
-  '@rspack/binding-linux-x64-gnu@1.7.9':
-    optional: true
-
-  '@rspack/binding-linux-x64-musl@1.7.9':
-    optional: true
-
-  '@rspack/binding-wasm32-wasi@1.7.9':
-    dependencies:
-      '@napi-rs/wasm-runtime': 1.0.7
-    optional: true
-
-  '@rspack/binding-win32-arm64-msvc@1.7.9':
-    optional: true
-
-  '@rspack/binding-win32-ia32-msvc@1.7.9':
-    optional: true
-
-  '@rspack/binding-win32-x64-msvc@1.7.9':
-    optional: true
-
-  '@rspack/binding@1.7.9':
-    optionalDependencies:
-      '@rspack/binding-darwin-arm64': 1.7.9
-      '@rspack/binding-darwin-x64': 1.7.9
-      '@rspack/binding-linux-arm64-gnu': 1.7.9
-      '@rspack/binding-linux-arm64-musl': 1.7.9
-      '@rspack/binding-linux-x64-gnu': 1.7.9
-      '@rspack/binding-linux-x64-musl': 1.7.9
-      '@rspack/binding-wasm32-wasi': 1.7.9
-      '@rspack/binding-win32-arm64-msvc': 1.7.9
-      '@rspack/binding-win32-ia32-msvc': 1.7.9
-      '@rspack/binding-win32-x64-msvc': 1.7.9
-
-  '@rspack/core@1.7.9(@swc/helpers@0.5.19)':
-    dependencies:
-      '@module-federation/runtime-tools': 0.22.0
-      '@rspack/binding': 1.7.9
-      '@rspack/lite-tapable': 1.1.0
-    optionalDependencies:
-      '@swc/helpers': 0.5.19
-
-  '@rspack/lite-tapable@1.1.0': {}
-
-  '@rstest/adapter-rslib@0.2.1(@rslib/core@0.19.6(typescript@5.9.3))(@rstest/core@0.8.5)(typescript@5.9.3)':
-    dependencies:
-      '@rslib/core': 0.19.6(typescript@5.9.3)
-      '@rstest/core': 0.8.5
-    optionalDependencies:
-      typescript: 5.9.3
-
-  '@rstest/core@0.8.5':
-    dependencies:
-      '@rsbuild/core': 1.7.3
-      '@types/chai': 5.2.3
-      tinypool: 1.1.1
-
-  '@swc/helpers@0.5.19':
-    dependencies:
-      tslib: 2.8.1
-
-  '@tybys/wasm-util@0.10.1':
-    dependencies:
-      tslib: 2.8.1
-    optional: true
-
-  '@types/chai@5.2.3':
-    dependencies:
-      '@types/deep-eql': 4.0.2
-      assertion-error: 2.0.1
-
-  '@types/deep-eql@4.0.2': {}
-
-  '@types/estree@1.0.8': {}
-
-  '@types/history@4.7.11': {}
-
-  '@types/history@5.0.0':
-    dependencies:
-      history: 5.3.0
-
-  '@types/json-schema@7.0.15': {}
-
-  '@types/lodash-es@4.17.12':
-    dependencies:
-      '@types/lodash': 4.17.24
-
-  '@types/lodash@4.17.24': {}
-
-  '@types/node@24.12.0':
-    dependencies:
-      undici-types: 7.16.0
-
-  '@types/prop-types@15.7.15': {}
-
-  '@types/react-dom@16.9.25(@types/react@16.14.69)':
-    dependencies:
-      '@types/react': 16.14.69
-
-  '@types/react-router-config@5.0.11':
-    dependencies:
-      '@types/history': 4.7.11
-      '@types/react': 16.14.69
-      '@types/react-router': 5.1.20
-
-  '@types/react-router-dom@5.1.7':
-    dependencies:
-      '@types/history': 5.0.0
-      '@types/react': 16.14.69
-      '@types/react-router': 5.1.12
-
-  '@types/react-router@5.1.12':
-    dependencies:
-      '@types/history': 5.0.0
-      '@types/react': 16.14.69
-
-  '@types/react-router@5.1.20':
-    dependencies:
-      '@types/history': 4.7.11
-      '@types/react': 16.14.69
-
-  '@types/react@16.14.69':
-    dependencies:
-      '@types/prop-types': 15.7.15
-      '@types/scheduler': 0.16.8
-      csstype: 3.2.3
-
-  '@types/scheduler@0.16.8': {}
-
-  '@typescript-eslint/eslint-plugin@8.57.1(@typescript-eslint/parser@8.57.1(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3)':
-    dependencies:
-      '@eslint-community/regexpp': 4.12.2
-      '@typescript-eslint/parser': 8.57.1(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3)
-      '@typescript-eslint/scope-manager': 8.57.1
-      '@typescript-eslint/type-utils': 8.57.1(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3)
-      '@typescript-eslint/utils': 8.57.1(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3)
-      '@typescript-eslint/visitor-keys': 8.57.1
-      eslint: 9.39.4(jiti@2.6.1)
-      ignore: 7.0.5
-      natural-compare: 1.4.0
-      ts-api-utils: 2.4.0(typescript@5.9.3)
-      typescript: 5.9.3
-    transitivePeerDependencies:
-      - supports-color
-
-  '@typescript-eslint/parser@8.57.1(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3)':
-    dependencies:
-      '@typescript-eslint/scope-manager': 8.57.1
-      '@typescript-eslint/types': 8.57.1
-      '@typescript-eslint/typescript-estree': 8.57.1(typescript@5.9.3)
-      '@typescript-eslint/visitor-keys': 8.57.1
-      debug: 4.4.3
-      eslint: 9.39.4(jiti@2.6.1)
-      typescript: 5.9.3
-    transitivePeerDependencies:
-      - supports-color
-
-  '@typescript-eslint/project-service@8.57.1(typescript@5.9.3)':
-    dependencies:
-      '@typescript-eslint/tsconfig-utils': 8.57.1(typescript@5.9.3)
-      '@typescript-eslint/types': 8.57.1
-      debug: 4.4.3
-      typescript: 5.9.3
-    transitivePeerDependencies:
-      - supports-color
-
-  '@typescript-eslint/scope-manager@8.57.1':
-    dependencies:
-      '@typescript-eslint/types': 8.57.1
-      '@typescript-eslint/visitor-keys': 8.57.1
-
-  '@typescript-eslint/tsconfig-utils@8.57.1(typescript@5.9.3)':
-    dependencies:
-      typescript: 5.9.3
-
-  '@typescript-eslint/type-utils@8.57.1(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3)':
-    dependencies:
-      '@typescript-eslint/types': 8.57.1
-      '@typescript-eslint/typescript-estree': 8.57.1(typescript@5.9.3)
-      '@typescript-eslint/utils': 8.57.1(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3)
-      debug: 4.4.3
-      eslint: 9.39.4(jiti@2.6.1)
-      ts-api-utils: 2.4.0(typescript@5.9.3)
-      typescript: 5.9.3
-    transitivePeerDependencies:
-      - supports-color
-
-  '@typescript-eslint/types@8.57.1': {}
-
-  '@typescript-eslint/typescript-estree@8.57.1(typescript@5.9.3)':
-    dependencies:
-      '@typescript-eslint/project-service': 8.57.1(typescript@5.9.3)
-      '@typescript-eslint/tsconfig-utils': 8.57.1(typescript@5.9.3)
-      '@typescript-eslint/types': 8.57.1
-      '@typescript-eslint/visitor-keys': 8.57.1
-      debug: 4.4.3
-      minimatch: 10.2.4
-      semver: 7.7.4
-      tinyglobby: 0.2.15
-      ts-api-utils: 2.4.0(typescript@5.9.3)
-      typescript: 5.9.3
-    transitivePeerDependencies:
-      - supports-color
-
-  '@typescript-eslint/utils@8.57.1(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3)':
-    dependencies:
-      '@eslint-community/eslint-utils': 4.9.1(eslint@9.39.4(jiti@2.6.1))
-      '@typescript-eslint/scope-manager': 8.57.1
-      '@typescript-eslint/types': 8.57.1
-      '@typescript-eslint/typescript-estree': 8.57.1(typescript@5.9.3)
-      eslint: 9.39.4(jiti@2.6.1)
-      typescript: 5.9.3
-    transitivePeerDependencies:
-      - supports-color
-
-  '@typescript-eslint/visitor-keys@8.57.1':
-    dependencies:
-      '@typescript-eslint/types': 8.57.1
-      eslint-visitor-keys: 5.0.1
-
-  '@umijs/ast@3.5.43':
-    dependencies:
-      '@umijs/utils': 3.5.43
-
-  '@umijs/babel-plugin-auto-css-modules@3.5.43':
-    dependencies:
-      '@umijs/utils': 3.5.43
-
-  '@umijs/babel-plugin-import-to-await-require@3.5.43':
-    dependencies:
-      '@umijs/utils': 3.5.43
-
-  '@umijs/babel-plugin-lock-core-js-3@3.5.43':
-    dependencies:
-      '@umijs/utils': 3.5.43
-      core-js: 3.6.5
-
-  '@umijs/babel-plugin-no-anonymous-default-export@3.5.43':
-    dependencies:
-      '@umijs/utils': 3.5.43
-
-  '@umijs/babel-preset-umi@3.5.43':
-    dependencies:
-      '@babel/runtime': 7.18.6
-      '@umijs/babel-plugin-auto-css-modules': 3.5.43
-      '@umijs/babel-plugin-import-to-await-require': 3.5.43
-      '@umijs/babel-plugin-lock-core-js-3': 3.5.43
-      '@umijs/babel-plugin-no-anonymous-default-export': 3.5.43
-      '@umijs/deps': 3.5.43
-      '@umijs/utils': 3.5.43
-
-  '@umijs/core@3.5.43':
-    dependencies:
-      '@umijs/ast': 3.5.43
-      '@umijs/babel-preset-umi': 3.5.43
-      '@umijs/deps': 3.5.43
-      '@umijs/utils': 3.5.43
-
-  '@umijs/deps@3.5.43':
-    dependencies:
-      '@bloomberg/record-tuple-polyfill': 0.0.3
-      chokidar: 3.5.1
-      clipboardy: 2.3.0
-      esbuild: 0.12.15
-      jest-worker: 24.9.0
-      prettier: 2.2.1
-      regenerate: 1.4.2
-      regenerate-unicode-properties: 10.0.1
-
-  '@umijs/renderer-react@3.5.43(react-dom@17.0.2(react@17.0.2))(react-router@5.2.0(react@17.0.2))(react@17.0.2)':
-    dependencies:
-      '@types/react': 16.14.69
-      '@types/react-dom': 16.9.25(@types/react@16.14.69)
-      '@types/react-router-config': 5.0.11
-      '@umijs/runtime': 3.5.43(react@17.0.2)
-      react: 17.0.2
-      react-dom: 17.0.2(react@17.0.2)
-      react-router-config: 5.1.1(react-router@5.2.0(react@17.0.2))(react@17.0.2)
-    transitivePeerDependencies:
-      - react-router
-
-  '@umijs/runtime@3.5.43(react@17.0.2)':
-    dependencies:
-      '@types/react-router': 5.1.12
-      '@types/react-router-dom': 5.1.7
-      history-with-query: 4.10.4
-      react: 17.0.2
-      react-router: 5.2.0(react@17.0.2)
-      react-router-dom: 5.2.0(react@17.0.2)
-      use-subscription: 1.5.1(react@17.0.2)
-
-  '@umijs/server@3.5.43':
-    dependencies:
-      '@umijs/core': 3.5.43
-      '@umijs/deps': 3.5.43
-      '@umijs/utils': 3.5.43
-
-  '@umijs/types@3.5.43(react-dom@17.0.2(react@17.0.2))(react-router@5.2.0(react@17.0.2))(react@17.0.2)':
-    dependencies:
-      '@umijs/babel-preset-umi': 3.5.43
-      '@umijs/core': 3.5.43
-      '@umijs/deps': 3.5.43
-      '@umijs/renderer-react': 3.5.43(react-dom@17.0.2(react@17.0.2))(react-router@5.2.0(react@17.0.2))(react@17.0.2)
-      '@umijs/server': 3.5.43
-      '@umijs/utils': 3.5.43
-      webpack-chain: 6.5.1
-    transitivePeerDependencies:
-      - react
-      - react-dom
-      - react-router
-
-  '@umijs/utils@3.5.43':
-    dependencies:
-      '@umijs/babel-preset-umi': 3.5.43
-      '@umijs/deps': 3.5.43
-
-  acorn-jsx@5.3.2(acorn@8.16.0):
-    dependencies:
-      acorn: 8.16.0
-
-  acorn@8.16.0: {}
-
-  ajv@6.14.0:
-    dependencies:
-      fast-deep-equal: 3.1.3
-      fast-json-stable-stringify: 2.1.0
-      json-schema-traverse: 0.4.1
-      uri-js: 4.4.1
-
-  ansi-styles@4.3.0:
-    dependencies:
-      color-convert: 2.0.1
-
-  anymatch@3.1.3:
-    dependencies:
-      normalize-path: 3.0.0
-      picomatch: 2.3.1
-
-  arch@2.2.0: {}
-
-  argparse@2.0.1: {}
-
-  assertion-error@2.0.1: {}
-
-  balanced-match@1.0.2: {}
-
-  balanced-match@4.0.4: {}
-
-  binary-extensions@2.3.0: {}
-
-  brace-expansion@1.1.12:
-    dependencies:
-      balanced-match: 1.0.2
-      concat-map: 0.0.1
-
-  brace-expansion@5.0.4:
-    dependencies:
-      balanced-match: 4.0.4
-
-  braces@3.0.3:
-    dependencies:
-      fill-range: 7.1.1
-
-  callsites@3.1.0: {}
-
-  chalk@4.1.2:
-    dependencies:
-      ansi-styles: 4.3.0
-      supports-color: 7.2.0
-
-  chokidar@3.5.1:
-    dependencies:
-      anymatch: 3.1.3
-      braces: 3.0.3
-      glob-parent: 5.1.2
-      is-binary-path: 2.1.0
-      is-glob: 4.0.3
-      normalize-path: 3.0.0
-      readdirp: 3.5.0
-    optionalDependencies:
-      fsevents: 2.3.3
-
-  clipboardy@2.3.0:
-    dependencies:
-      arch: 2.2.0
-      execa: 1.0.0
-      is-wsl: 2.2.0
-
-  color-convert@2.0.1:
-    dependencies:
-      color-name: 1.1.4
-
-  color-name@1.1.4: {}
-
-  concat-map@0.0.1: {}
-
-  core-js@3.47.0: {}
-
-  core-js@3.6.5: {}
-
-  cross-spawn@6.0.6:
-    dependencies:
-      nice-try: 1.0.5
-      path-key: 2.0.1
-      semver: 5.7.2
-      shebang-command: 1.2.0
-      which: 1.3.1
-
-  cross-spawn@7.0.6:
-    dependencies:
-      path-key: 3.1.1
-      shebang-command: 2.0.0
-      which: 2.0.2
-
-  csstype@3.2.3: {}
-
-  debug@4.4.3:
-    dependencies:
-      ms: 2.1.3
-
-  decode-uri-component@0.2.2: {}
-
-  deep-is@0.1.4: {}
-
-  deepmerge@1.5.2: {}
-
-  end-of-stream@1.4.5:
-    dependencies:
-      once: 1.4.0
-
-  esbuild@0.12.15: {}
-
-  escape-string-regexp@4.0.0: {}
-
-  eslint-scope@8.4.0:
-    dependencies:
-      esrecurse: 4.3.0
-      estraverse: 5.3.0
-
-  eslint-visitor-keys@3.4.3: {}
-
-  eslint-visitor-keys@4.2.1: {}
-
-  eslint-visitor-keys@5.0.1: {}
-
-  eslint@9.39.4(jiti@2.6.1):
-    dependencies:
-      '@eslint-community/eslint-utils': 4.9.1(eslint@9.39.4(jiti@2.6.1))
-      '@eslint-community/regexpp': 4.12.2
-      '@eslint/config-array': 0.21.2
-      '@eslint/config-helpers': 0.4.2
-      '@eslint/core': 0.17.0
-      '@eslint/eslintrc': 3.3.5
-      '@eslint/js': 9.39.4
-      '@eslint/plugin-kit': 0.4.1
-      '@humanfs/node': 0.16.7
-      '@humanwhocodes/module-importer': 1.0.1
-      '@humanwhocodes/retry': 0.4.3
-      '@types/estree': 1.0.8
-      ajv: 6.14.0
-      chalk: 4.1.2
-      cross-spawn: 7.0.6
-      debug: 4.4.3
-      escape-string-regexp: 4.0.0
-      eslint-scope: 8.4.0
-      eslint-visitor-keys: 4.2.1
-      espree: 10.4.0
-      esquery: 1.7.0
-      esutils: 2.0.3
-      fast-deep-equal: 3.1.3
-      file-entry-cache: 8.0.0
-      find-up: 5.0.0
-      glob-parent: 6.0.2
-      ignore: 5.3.2
-      imurmurhash: 0.1.4
-      is-glob: 4.0.3
-      json-stable-stringify-without-jsonify: 1.0.1
-      lodash.merge: 4.6.2
-      minimatch: 3.1.5
-      natural-compare: 1.4.0
-      optionator: 0.9.4
-    optionalDependencies:
-      jiti: 2.6.1
-    transitivePeerDependencies:
-      - supports-color
-
-  espree@10.4.0:
-    dependencies:
-      acorn: 8.16.0
-      acorn-jsx: 5.3.2(acorn@8.16.0)
-      eslint-visitor-keys: 4.2.1
-
-  esquery@1.7.0:
-    dependencies:
-      estraverse: 5.3.0
-
-  esrecurse@4.3.0:
-    dependencies:
-      estraverse: 5.3.0
-
-  estraverse@5.3.0: {}
-
-  esutils@2.0.3: {}
-
-  execa@1.0.0:
-    dependencies:
-      cross-spawn: 6.0.6
-      get-stream: 4.1.0
-      is-stream: 1.1.0
-      npm-run-path: 2.0.2
-      p-finally: 1.0.0
-      signal-exit: 3.0.7
-      strip-eof: 1.0.0
-
-  fast-deep-equal@3.1.3: {}
-
-  fast-json-stable-stringify@2.1.0: {}
-
-  fast-levenshtein@2.0.6: {}
-
-  fdir@6.5.0(picomatch@4.0.3):
-    optionalDependencies:
-      picomatch: 4.0.3
-
-  file-entry-cache@8.0.0:
-    dependencies:
-      flat-cache: 4.0.1
-
-  fill-range@7.1.1:
-    dependencies:
-      to-regex-range: 5.0.1
-
-  filter-obj@1.1.0: {}
-
-  find-up@5.0.0:
-    dependencies:
-      locate-path: 6.0.0
-      path-exists: 4.0.0
-
-  flat-cache@4.0.1:
-    dependencies:
-      flatted: 3.4.2
-      keyv: 4.5.4
-
-  flatted@3.4.2: {}
-
-  fs-extra@11.3.4:
-    dependencies:
-      graceful-fs: 4.2.11
-      jsonfile: 6.2.0
-      universalify: 2.0.1
-
-  fsevents@2.3.3:
-    optional: true
-
-  get-stream@4.1.0:
-    dependencies:
-      pump: 3.0.4
-
-  glob-parent@5.1.2:
-    dependencies:
-      is-glob: 4.0.3
-
-  glob-parent@6.0.2:
-    dependencies:
-      is-glob: 4.0.3
-
-  globals@14.0.0: {}
-
-  globals@17.4.0: {}
-
-  graceful-fs@4.2.11: {}
-
-  has-flag@3.0.0: {}
-
-  has-flag@4.0.0: {}
-
-  history-with-query@4.10.4:
-    dependencies:
-      '@babel/runtime': 7.29.2
-      loose-envify: 1.4.0
-      query-string: 6.14.1
-      resolve-pathname: 3.0.0
-      tiny-invariant: 1.3.3
-      tiny-warning: 1.0.3
-      value-equal: 1.0.1
-
-  history@4.10.1:
-    dependencies:
-      '@babel/runtime': 7.29.2
-      loose-envify: 1.4.0
-      resolve-pathname: 3.0.0
-      tiny-invariant: 1.3.3
-      tiny-warning: 1.0.3
-      value-equal: 1.0.1
-
-  history@5.3.0:
-    dependencies:
-      '@babel/runtime': 7.29.2
-
-  hoist-non-react-statics@3.3.2:
-    dependencies:
-      react-is: 16.13.1
-
-  ignore@5.3.2: {}
-
-  ignore@7.0.5: {}
-
-  import-fresh@3.3.1:
-    dependencies:
-      parent-module: 1.0.1
-      resolve-from: 4.0.0
-
-  imurmurhash@0.1.4: {}
-
-  is-binary-path@2.1.0:
-    dependencies:
-      binary-extensions: 2.3.0
-
-  is-docker@2.2.1: {}
-
-  is-extglob@2.1.1: {}
-
-  is-glob@4.0.3:
-    dependencies:
-      is-extglob: 2.1.1
-
-  is-number@7.0.0: {}
-
-  is-stream@1.1.0: {}
-
-  is-wsl@2.2.0:
-    dependencies:
-      is-docker: 2.2.1
-
-  isarray@0.0.1: {}
-
-  isexe@2.0.0: {}
-
-  javascript-stringify@2.1.0: {}
-
-  jest-worker@24.9.0:
-    dependencies:
-      merge-stream: 2.0.0
-      supports-color: 6.1.0
-
-  jiti@2.6.1: {}
-
-  js-tokens@4.0.0: {}
-
-  js-yaml@4.1.1:
-    dependencies:
-      argparse: 2.0.1
-
-  json-buffer@3.0.1: {}
-
-  json-schema-traverse@0.4.1: {}
-
-  json-stable-stringify-without-jsonify@1.0.1: {}
-
-  jsonfile@6.2.0:
-    dependencies:
-      universalify: 2.0.1
-    optionalDependencies:
-      graceful-fs: 4.2.11
-
-  keyv@4.5.4:
-    dependencies:
-      json-buffer: 3.0.1
-
-  levn@0.4.1:
-    dependencies:
-      prelude-ls: 1.2.1
-      type-check: 0.4.0
-
-  locate-path@6.0.0:
-    dependencies:
-      p-locate: 5.0.0
-
-  lodash-es@4.17.23: {}
-
-  lodash.merge@4.6.2: {}
-
-  loose-envify@1.4.0:
-    dependencies:
-      js-tokens: 4.0.0
-
-  merge-stream@2.0.0: {}
-
-  mini-create-react-context@0.4.1(prop-types@15.8.1)(react@17.0.2):
-    dependencies:
-      '@babel/runtime': 7.29.2
-      prop-types: 15.8.1
-      react: 17.0.2
-      tiny-warning: 1.0.3
-
-  minimatch@10.2.4:
-    dependencies:
-      brace-expansion: 5.0.4
-
-  minimatch@3.1.5:
-    dependencies:
-      brace-expansion: 1.1.12
-
-  ms@2.1.3: {}
-
-  natural-compare@1.4.0: {}
-
-  nice-try@1.0.5: {}
-
-  normalize-path@3.0.0: {}
-
-  npm-run-path@2.0.2:
-    dependencies:
-      path-key: 2.0.1
-
-  object-assign@4.1.1: {}
-
-  once@1.4.0:
-    dependencies:
-      wrappy: 1.0.2
-
-  optionator@0.9.4:
-    dependencies:
-      deep-is: 0.1.4
-      fast-levenshtein: 2.0.6
-      levn: 0.4.1
-      prelude-ls: 1.2.1
-      type-check: 0.4.0
-      word-wrap: 1.2.5
-
-  p-finally@1.0.0: {}
-
-  p-limit@3.1.0:
-    dependencies:
-      yocto-queue: 0.1.0
-
-  p-locate@5.0.0:
-    dependencies:
-      p-limit: 3.1.0
-
-  parent-module@1.0.1:
-    dependencies:
-      callsites: 3.1.0
-
-  path-exists@4.0.0: {}
-
-  path-key@2.0.1: {}
-
-  path-key@3.1.1: {}
-
-  path-to-regexp@1.9.0:
-    dependencies:
-      isarray: 0.0.1
-
-  picomatch@2.3.1: {}
-
-  picomatch@4.0.3: {}
-
-  prelude-ls@1.2.1: {}
-
-  prettier@2.2.1: {}
-
-  prettier@3.8.1: {}
-
-  prop-types@15.8.1:
-    dependencies:
-      loose-envify: 1.4.0
-      object-assign: 4.1.1
-      react-is: 16.13.1
-
-  pump@3.0.4:
-    dependencies:
-      end-of-stream: 1.4.5
-      once: 1.4.0
-
-  punycode@2.3.1: {}
-
-  query-string@6.14.1:
-    dependencies:
-      decode-uri-component: 0.2.2
-      filter-obj: 1.1.0
-      split-on-first: 1.1.0
-      strict-uri-encode: 2.0.0
-
-  react-dom@17.0.2(react@17.0.2):
-    dependencies:
-      loose-envify: 1.4.0
-      object-assign: 4.1.1
-      react: 17.0.2
-      scheduler: 0.20.2
-
-  react-is@16.13.1: {}
-
-  react-router-config@5.1.1(react-router@5.2.0(react@17.0.2))(react@17.0.2):
-    dependencies:
-      '@babel/runtime': 7.29.2
-      react: 17.0.2
-      react-router: 5.2.0(react@17.0.2)
-
-  react-router-dom@5.2.0(react@17.0.2):
-    dependencies:
-      '@babel/runtime': 7.29.2
-      history: 4.10.1
-      loose-envify: 1.4.0
-      prop-types: 15.8.1
-      react: 17.0.2
-      react-router: 5.2.0(react@17.0.2)
-      tiny-invariant: 1.3.3
-      tiny-warning: 1.0.3
-
-  react-router@5.2.0(react@17.0.2):
-    dependencies:
-      '@babel/runtime': 7.29.2
-      history: 4.10.1
-      hoist-non-react-statics: 3.3.2
-      loose-envify: 1.4.0
-      mini-create-react-context: 0.4.1(prop-types@15.8.1)(react@17.0.2)
-      path-to-regexp: 1.9.0
-      prop-types: 15.8.1
-      react: 17.0.2
-      react-is: 16.13.1
-      tiny-invariant: 1.3.3
-      tiny-warning: 1.0.3
-
-  react@17.0.2:
-    dependencies:
-      loose-envify: 1.4.0
-      object-assign: 4.1.1
-
-  readdirp@3.5.0:
-    dependencies:
-      picomatch: 2.3.1
-
-  regenerate-unicode-properties@10.0.1:
-    dependencies:
-      regenerate: 1.4.2
-
-  regenerate@1.4.2: {}
-
-  regenerator-runtime@0.13.11: {}
-
-  resolve-from@4.0.0: {}
-
-  resolve-pathname@3.0.0: {}
-
-  rsbuild-plugin-dts@0.19.6(@rsbuild/core@1.7.3)(typescript@5.9.3):
-    dependencies:
-      '@ast-grep/napi': 0.37.0
-      '@rsbuild/core': 1.7.3
-    optionalDependencies:
-      typescript: 5.9.3
-
-  scheduler@0.20.2:
-    dependencies:
-      loose-envify: 1.4.0
-      object-assign: 4.1.1
-
-  semver@5.7.2: {}
-
-  semver@7.7.4: {}
-
-  shebang-command@1.2.0:
-    dependencies:
-      shebang-regex: 1.0.0
-
-  shebang-command@2.0.0:
-    dependencies:
-      shebang-regex: 3.0.0
-
-  shebang-regex@1.0.0: {}
-
-  shebang-regex@3.0.0: {}
-
-  signal-exit@3.0.7: {}
-
-  split-on-first@1.1.0: {}
-
-  strict-uri-encode@2.0.0: {}
-
-  strip-eof@1.0.0: {}
-
-  strip-json-comments@3.1.1: {}
-
-  supports-color@6.1.0:
-    dependencies:
-      has-flag: 3.0.0
-
-  supports-color@7.2.0:
-    dependencies:
-      has-flag: 4.0.0
-
-  tiny-invariant@1.3.3: {}
-
-  tiny-warning@1.0.3: {}
-
-  tinyglobby@0.2.15:
-    dependencies:
-      fdir: 6.5.0(picomatch@4.0.3)
-      picomatch: 4.0.3
-
-  tinypool@1.1.1: {}
-
-  to-regex-range@5.0.1:
-    dependencies:
-      is-number: 7.0.0
-
-  ts-api-utils@2.4.0(typescript@5.9.3):
-    dependencies:
-      typescript: 5.9.3
-
-  tslib@2.8.1: {}
-
-  type-check@0.4.0:
-    dependencies:
-      prelude-ls: 1.2.1
-
-  typescript-eslint@8.57.1(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3):
-    dependencies:
-      '@typescript-eslint/eslint-plugin': 8.57.1(@typescript-eslint/parser@8.57.1(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3)
-      '@typescript-eslint/parser': 8.57.1(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3)
-      '@typescript-eslint/typescript-estree': 8.57.1(typescript@5.9.3)
-      '@typescript-eslint/utils': 8.57.1(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3)
-      eslint: 9.39.4(jiti@2.6.1)
-      typescript: 5.9.3
-    transitivePeerDependencies:
-      - supports-color
-
-  typescript@5.9.3: {}
-
-  undici-types@7.16.0: {}
-
-  universalify@2.0.1: {}
-
-  uri-js@4.4.1:
-    dependencies:
-      punycode: 2.3.1
-
-  use-subscription@1.5.1(react@17.0.2):
-    dependencies:
-      object-assign: 4.1.1
-      react: 17.0.2
-
-  value-equal@1.0.1: {}
-
-  webpack-chain@6.5.1:
-    dependencies:
-      deepmerge: 1.5.2
-      javascript-stringify: 2.1.0
-
-  which@1.3.1:
-    dependencies:
-      isexe: 2.0.0
-
-  which@2.0.2:
-    dependencies:
-      isexe: 2.0.0
-
-  word-wrap@1.2.5: {}
-
-  wrappy@1.0.2: {}
-
-  yocto-queue@0.1.0: {}
-
-
---- PATH: pnpm-workspace.yaml ---
-packages:
-  - 'packages/*'
-  - 'playground/*'
-  - 'docs'
-  - '!**/test/**'
-
---- PATH: scripts\debug.js ---
-const { baseExecute } = require('./run');
-
-function execute(args) {
-  // 调用核心逻辑，并强制注入调试参数
-  baseExecute(args, {
-    NODE_OPTIONS: '--inspect-brk=9230',
-  });
-}
-
-module.exports = { execute };
-
-
---- PATH: scripts\index.js ---
-#!/usr/bin/env node
-const { execute: runExecute } = require('./run');
-const { execute: debugExecute } = require('./debug');
-const { execute: updatePmExecute } = require('./update-pm');
-
-function parseArgs(args) {
-  // 简单处理：将所有参数组合成一个命令字符串
-  return {
-    _: args,
-    command: args.join(' '),
-  };
-}
-
-function init() {
-  const args = process.argv.slice(2);
-  const command = args[0];
-  const commandArgs = parseArgs(args.slice(1));
-
-  switch (command) {
-    case 'run':
-      runExecute(commandArgs);
-      break;
-    case 'debug':
-      debugExecute(commandArgs);
-      break;
-    case 'update:pm':
-    case 'update-pm':
-      updatePmExecute(commandArgs);
-      break;
-    default:
-      showHelp();
-  }
-}
-
-function showHelp() {
-  console.log(`
-🚀 CLI Help
-用法: scripts <command> [options]
-命令:
-  run                兼容旧版 node 运行命令
-  debug              以调试模式运行 (端口 9230)
-  update:pm          更新 pnpm 版本
-  `);
-}
-
-// ✨ 必须添加这一行，否则程序运行后会直接退出而不执行任何逻辑
-init();
-
-
---- PATH: scripts\package.json ---
-{
-  "name": "@repo/scripts",
-  "version": "1.0.0",
-  "type": "commonjs",
-  "bin": {
-    "scripts": "./index.js"
-  }
-}
-
---- PATH: scripts\run.js ---
-// run.js
-const { execSync } = require('child_process');
-const path = require('path');
-
-const packagePath = path.join(process.cwd(), 'package.json');
-const packageData = require(packagePath);
-
-// 提取判定 OpenSSL 补丁的逻辑
-function getLegacyEnv() {
-  const nodeVersion = process.version;
-  const versionMatch = nodeVersion.match(/v(\d+)\.(\d+)\.(\d+)/);
-  if (!versionMatch) return {};
-
-  const major = parseInt(versionMatch[1]);
-  const minor = parseInt(versionMatch[2]);
-
-  if (
-    major >= 17 ||
-    (major === 16 && minor >= 13) ||
-    process.platform === 'win32'
-  ) {
-    return { NODE_OPTIONS: '--openssl-legacy-provider' };
-  }
-  return {};
-}
-
-/**
- * 核心执行函数
- * @param {Object} args 参数
- * @param {Object} extraEnv 额外的环境变量（如调试参数）
- */
-function baseExecute(args, extraEnv = {}) {
-  let command = args.command;
-  if (!command && args._ && args._.length > 0) {
-    command = args._.join(' ');
-  }
-
-  if (!command) {
-    console.log('❌ 缺少命令 command');
-    return;
-  }
-
-  const stdio = args.silent ? 'pipe' : 'inherit';
-
-  // 合并环境变量：系统环境 + OpenSSL补丁 + 额外注入(如Debug)
-  const legacyEnv = getLegacyEnv();
-  const finalEnv = { ...process.env, ...legacyEnv };
-
-  if (extraEnv.NODE_OPTIONS) {
-    finalEnv.NODE_OPTIONS = [finalEnv.NODE_OPTIONS, extraEnv.NODE_OPTIONS]
-      .filter(Boolean)
-      .join(' ');
-  }
-
-  try {
-    execSync(command, {
-      stdio,
-      env: finalEnv,
-      encoding: 'utf8',
-    });
-  } catch (error) {
-    const err = String(error);
-    if (
-      err.includes('Cannot find module') ||
-      err.includes('MODULE_NOT_FOUND')
-    ) {
-      console.log(
-        `🟡 请先运行：pnpm turbo run build --filter="${packageData.name}^..."`,
-      );
-    } else {
-      console.log(`🟡 ${command} 运行失败`);
-    }
-  }
-}
-
-// run.js 的默认导出不带 debug 标志
-function execute(args) {
-  baseExecute(args);
-}
-
-module.exports = { execute, baseExecute };
-
-
---- PATH: scripts\update-pm.js ---
-const { execSync } = require('child_process');
-const fs = require('fs');
-const path = require('path');
-const packagePath = path.join(process.cwd(), 'package.json');
-const packageJSON = require(packagePath);
-
-// Update pnpm to latest version
-function execute() {
-  try {
-    execSync('pnpm self-update');
-  } catch (err) {
-    console.warn('Could not update pnpm: ', err);
-  }
-
-  const PNPM_VERSION = execSync('pnpm -v').toString().trim();
-  packageJSON.packageManager = `pnpm@${PNPM_VERSION}`;
-
-  fs.writeFileSync(
-    path.resolve(__dirname, '../package.json'),
-    JSON.stringify(packageJSON, null, 2),
-  );
-
-  // commit to repo
-  try {
-    execSync('git add ./package.json && git commit -m "Update package.json with pnpm version"');
-  } catch {
-    // no changesets to be applied
-  }
-}
-
-module.exports = { execute }
-
-
---- PATH: test\eslint.config.mjs ---
-import js from '@eslint/js';
-import globals from 'globals';
-import ts from 'typescript-eslint';
-
-export default [
-  { languageOptions: { globals: globals.browser } },
-  js.configs.recommended,
-  ...ts.configs.recommended,
-  { ignores: ['dist/'] },
-];
-
-
---- PATH: test\package.json ---
-{
-  "name": "test",
-  "version": "1.0.0",
-  "type": "module",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
-    }
-  },
-  "main": "./dist/index.cjs",
-  "types": "./dist/index.d.ts",
-  "files": [
-    "dist"
-  ],
-  "scripts": {
-    "build": "rslib build",
-    "dev": "rslib build --watch",
-    "format": "prettier --write .",
-    "lint": "eslint .",
-    "test": "rstest",
-    "test:watch": "rstest --watch"
-  },
-  "devDependencies": {
-    "@eslint/js": "^9.39.4",
-    "@rslib/core": "^0.20.0",
-    "@rstest/adapter-rslib": "^0.2.1",
-    "@rstest/core": "^0.9.0",
-    "@types/node": "^24.12.0",
-    "eslint": "^9.39.4",
-    "globals": "^17.4.0",
-    "prettier": "^3.8.1",
-    "typescript": "^5.9.3",
-    "typescript-eslint": "^8.56.1"
-  },
-  "private": true
-}
-
-
---- PATH: test\rslib.config.ts ---
-import { defineConfig } from '@rslib/core';
-
-export default defineConfig({
-  lib: [
-    {
-      format: 'esm',
-      syntax: ['node 18'],
-      dts: true,
-    },
-    {
-      format: 'cjs',
-      syntax: ['node 18'],
-    },
-  ],
-});
-
-
---- PATH: test\rstest.config.ts ---
-import { withRslibConfig } from '@rstest/adapter-rslib';
-import { defineConfig } from '@rstest/core';
-
-export default defineConfig({
-  extends: withRslibConfig(),
-});
-
-
---- PATH: test\src\index.ts ---
-export const squared = (n: number): number => n * n;
-
-
---- PATH: test\tests\index.test.ts ---
-import { expect, test } from '@rstest/core';
-import { squared } from '../src/index';
-
-test('squared', () => {
-  expect(squared(2)).toBe(4);
-  expect(squared(12)).toBe(144);
-});
-
-
---- PATH: test\tsconfig.json ---
-{
-  "compilerOptions": {
-    "lib": ["ES2022"],
-    "module": "ESNext",
-    "noEmit": true,
-    "strict": true,
-    "skipLibCheck": true,
-    "isolatedModules": true,
-    "resolveJsonModule": true,
-    "moduleResolution": "bundler",
-    "useDefineForClassFields": true,
-    "allowImportingTsExtensions": true
-  },
-  "include": ["src"]
-}
-
-
---- PATH: tsconfig.base.json ---
-{
-  "compilerOptions": {
-    "target": "ESNext",
-    "module": "ESNext",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "moduleResolution": "bundler",
-    "useDefineForClassFields": true,
-    "resolveJsonModule": true,
-    "allowImportingTsExtensions": true,
-    "strict": true,
-    "noEmit": true,
-    "skipLibCheck": true,
-    "isolatedModules": true,
-    "esModuleInterop": true,
+    "rootDir": "src",
+    "composite": true, // 必须开启，支持被引用
+    "noEmit": false, // 必须改为 false，否则无法作为引用项
+    "emitDeclarationOnly": true, // 关键：只产出类型定义文件，不产生 JS 文件
     "declaration": true,
     "declarationMap": true,
-    "baseUrl": ".",
-    "paths": {
-      "@rsbuild-runtime/*": ["packages/*/src"]
-    }
-  }
-}
-
-
---- PATH: tsconfig.json ---
-{
-  "files": [],
-  "references": [
-    { "path": "./packages/core" },
-    { "path": "./packages/plugin" }
-  ]
+    "outDir": "dist" // 产出到 dist 目录
+  },
+  "include": ["src"]
 }
 

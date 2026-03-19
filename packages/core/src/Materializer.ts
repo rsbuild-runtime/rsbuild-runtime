@@ -1,31 +1,44 @@
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { dirname, normalize } from 'node:path';
 
 export class Materializer {
-  /**
-   * 只有在内容发生变化时才写入文件，防止触发无效的构建更新
-   */
-  public static writeIfChanged(filePath: string, content: string): void {
-    const dir = dirname(filePath);
+  public static writeIfChanged(
+    filePath: string,
+    content: string,
+    encoding: BufferEncoding = 'utf-8',
+  ): void {
+    // Defense: Do not write or delete if content is empty (prevents accidental wipe)
+    if (!content) return;
+
+    const normalizedPath = normalize(filePath);
+    const dir = dirname(normalizedPath);
+
     if (!existsSync(dir)) {
       mkdirSync(dir, { recursive: true });
     }
 
     const newHash = this.calculateHash(content);
 
-    if (existsSync(filePath)) {
-      const oldContent = readFileSync(filePath, 'utf-8');
-      const oldHash = this.calculateHash(oldContent);
-      if (newHash === oldHash) {
-        return; // 内容一致，跳过写入
+    if (existsSync(normalizedPath)) {
+      try {
+        const oldHash = this.calculateHash(readFileSync(normalizedPath));
+        if (newHash === oldHash) return;
+      } catch (err) {
+        console.warn(`[Materializer] Read failed: ${normalizedPath}`, err);
       }
     }
 
-    writeFileSync(filePath, content, 'utf-8');
+    try {
+      writeFileSync(normalizedPath, content, { encoding });
+    } catch (err) {
+      throw new Error(
+        `[Materializer] Write failed: ${normalizedPath}\n${String(err)}`,
+      );
+    }
   }
 
-  private static calculateHash(content: string): string {
+  private static calculateHash(content: string | Buffer): string {
     return createHash('md5').update(content).digest('hex');
   }
 }

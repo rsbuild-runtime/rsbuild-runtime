@@ -9,10 +9,15 @@ export interface HookDefinition {
 }
 
 export interface HookImplementation {
-  file: string; // 物理文件路径
-  content?: string; // 动态生成的代码
-  stage?: number; // 优先级
+  file: string;
+  content?: string;
+  stage?: number;
   exportName?: string;
+}
+
+export interface HookOverride {
+  mode: 'replace' | 'before' | 'after';
+  target: string;
 }
 
 export interface FeatureResult {
@@ -22,14 +27,11 @@ export interface FeatureResult {
   implements?: Record<string, HookImplementation>;
   stage?: number;
   disableFeatures?: string[];
-  overrides?: Record<
-    string,
-    { mode: 'replace' | 'before' | 'after'; target: string }
-  >;
+  overrides?: Record<string, HookOverride>;
 }
 
 export interface FeatureParams<V = unknown> {
   root: string;
   config: V;
-  getV: (pkg: string) => number;
+  getV: (packageName: string) => number;
 }
