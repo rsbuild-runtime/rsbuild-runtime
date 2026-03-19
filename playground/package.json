@@ -1,0 +1,51 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "scripts debug rsbuild dev",
+    "start": "scripts run umi dev",
+    "build": "scripts run umi build",
+    "postinstall": "scripts run umi generate tmp",
+    "prettier": "prettier --write '**/*.{js,jsx,tsx,ts,less,md,json}'",
+    "test": "scripts run umi-test",
+    "test:coverage": "scripts run umi-test --coverage"
+  },
+  "gitHooks": {
+    "pre-commit": "lint-staged"
+  },
+  "lint-staged": {
+    "*.{js,jsx,less,md,json}": [
+      "prettier --write"
+    ],
+    "*.ts?(x)": [
+      "prettier --parser=typescript --write"
+    ]
+  },
+  "dependencies": {
+    "antd": "~4.24.16",
+    "history": "^4.10.1",
+    "lodash-es": "^4.17.23",
+    "react": "17.x",
+    "react-dom": "17.x",
+    "react-router-dom": "^5.3.4",
+    "umi": "^3.5.43",
+    "rsbuild-plugin-runtime": "workspace:*"
+  },
+  "devDependencies": {
+    "@repo/scripts": "workspace:*",
+    "@rsbuild/core": "^1.7.3",
+    "@rsbuild/plugin-less": "^1.6.0",
+    "@rsbuild/plugin-react": "^1.4.5",
+    "@types/history": "^4.7.11",
+    "@types/lodash-es": "^4.17.12",
+    "@types/react": "^17.0.0",
+    "@types/react-dom": "^17.0.0",
+    "@types/react-router-dom": "^5.3.3",
+    "@umijs/preset-react": "1.x",
+    "@umijs/test": "^3.5.43",
+    "less": "^3.13.1",
+    "lint-staged": "^10.0.7",
+    "prettier": "^2.2.0",
+    "typescript": "^4.1.2",
+    "yorkie": "^2.0.0"
+  }
+}

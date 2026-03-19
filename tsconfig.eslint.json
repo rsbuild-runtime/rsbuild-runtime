@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "composite": false
+  },
+  "include": [
+    "packages/**/*.ts",
+    "packages/**/*.tsx",
+    "playground/**/*.ts",
+    "playground/**/*.tsx",
+    "scripts/**/*",
+    "*.ts",
+    "*.mts",
+    "*.cjs"
+  ],
+  "exclude": ["**/node_modules", "**/dist", "playground/src/.runtime"]
+}
