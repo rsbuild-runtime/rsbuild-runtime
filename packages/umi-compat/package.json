@@ -1,0 +1,31 @@
+{
+  "name": "rsbuild-plugin-umi",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "scripts": {
+    "build": "rslib build",
+    "dev": "rslib build --watch"
+  },
+  "dependencies": {
+    "@rsbuild-runtime/core": "workspace:*",
+    "rsbuild-plugin-runtime": "workspace:*",
+    "jiti": "^2.1.2"
+  },
+  "peerDependencies": {
+    "@rsbuild/core": ">=1.0.0"
+  },
+  "devDependencies": {
+    "@rslib/core": "^0.20.0",
+    "typescript": "^5.7.2"
+  }
+}

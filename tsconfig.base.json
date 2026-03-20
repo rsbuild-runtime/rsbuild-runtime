@@ -15,7 +15,8 @@
     "declarationMap": true,
     "baseUrl": ".",
     "paths": {
-      "@rsbuild-runtime/*": ["packages/*/src"]
+      "@rsbuild-runtime/*": ["packages/*/src"],
+      "rsbuild-plugin-runtime": ["packages/plugin/src"]
     }
   }
 }

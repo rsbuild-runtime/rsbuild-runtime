@@ -1,9 +1,13 @@
 
---- PATH: packages\core\package.json ---
+--- PATH: packages\plugin\package.json ---
 {
-  "name": "@rsbuild-runtime/core",
+  "name": "rsbuild-plugin-runtime",
   "version": "1.0.0",
+  "description": "基于静态编排与代码生成的 Rsbuild 运行时框架插件",
   "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -11,8 +15,6 @@
       "require": "./dist/index.cjs"
     }
   },
-  "main": "./dist/index.cjs",
-  "types": "./dist/index.d.ts",
   "files": [
     "dist"
   ],
@@ -24,20 +26,33 @@
     "test": "rstest",
     "test:watch": "rstest --watch"
   },
+  "dependencies": {
+    "@rsbuild-runtime/core": "workspace:*",
+    "jiti": "^2.1.2",
+    "fs-extra": "^11.2.0",
+    "lodash-es": "^4.17.21"
+  },
+  "peerDependencies": {
+    "@rsbuild/core": ">=1.0.0"
+  },
   "devDependencies": {
+    "@rsbuild-runtime/core": "workspace:*",
     "@rsbuild/core": "^1.7.3",
     "@rslib/core": "^0.19.6",
     "@rstest/adapter-rslib": "^0.2.0",
     "@rstest/core": "^0.8.5",
     "@types/lodash-es": "^4.17.12",
     "@types/node": "^24.10.13",
+    "@umijs/types": "^3.5.43",
     "typescript": "^5.9.3"
   },
-  "private": true
+  "publishConfig": {
+    "access": "public"
+  }
 }
 
 
---- PATH: packages\core\rslib.config.ts ---
+--- PATH: packages\plugin\rslib.config.ts ---
 import { defineConfig } from '@rslib/core';
 
 export default defineConfig({
@@ -55,7 +70,7 @@ export default defineConfig({
 });
 
 
---- PATH: packages\core\rstest.config.ts ---
+--- PATH: packages\plugin\rstest.config.ts ---
 import { withRslibConfig } from '@rstest/adapter-rslib';
 import { defineConfig } from '@rstest/core';
 
@@ -64,615 +79,205 @@ export default defineConfig({
 });
 
 
---- PATH: packages\core\src\Arbiter.ts ---
-import type { FeatureResult, HookImplementation } from './types';
+--- PATH: packages\plugin\src\index.ts ---
+import type { RsbuildPlugin } from '@rsbuild/core';
+import { RuntimeManager } from './RuntimeManager';
+import type { PluginOptions } from './types';
+import type { Feature } from '@rsbuild-runtime/core';
 
-export interface ResolvedHook extends HookImplementation {
-  featureId: string;
-}
+/**
+ * Generic runtime plugin for Rsbuild.
+ * Supports auto-inference of configuration based on provided features.
+ */
+export const pluginRuntime = <T extends readonly Feature<string, unknown>[]>(
+  options: PluginOptions<T>,
+): RsbuildPlugin => ({
+  name: 'rsbuild-plugin-runtime',
+  setup(api) {
+    const manager = new RuntimeManager(api, options.features, options.tempDir);
 
-export class Arbiter {
-  private results = new Map<string, FeatureResult>();
+    api.modifyRsbuildConfig(async (config, { mergeRsbuildConfig }) => {
+      // Use the config passed from options or an empty object
+      const userConfig = options.config || {};
 
-  public addResult(id: string, result: FeatureResult) {
-    this.results.set(id, result);
-  }
+      // Execute orchestration and obtain the merged Rsbuild configuration fragments
+      const rsbuildConfigFragment = await manager.execute(
+        userConfig,
+        mergeRsbuildConfig,
+      );
 
-  public resolve(): Map<string, ResolvedHook[]> {
-    const resolvedMap = new Map<string, ResolvedHook[]>();
-    const disabledIds = new Set<string>();
-
-    // 1. 全局裁断
-    this.results.forEach((res) =>
-      res.disableFeatures?.forEach((id) => disabledIds.add(id)),
-    );
-    const activeResults = new Map(
-      Array.from(this.results).filter(([id]) => !disabledIds.has(id)),
-    );
-
-    // 2. 收集实现
-    activeResults.forEach((res, featureId) => {
-      if (!res.implements) return;
-      Object.entries(res.implements).forEach(([key, impl]) => {
-        // 检查覆盖逻辑 (replace)
-        if (this.isReplaced(key, featureId, activeResults)) return;
-
-        const list = resolvedMap.get(key) || [];
-        list.push({ ...impl, featureId, stage: impl.stage ?? res.stage ?? 0 });
-        resolvedMap.set(key, list);
+      return mergeRsbuildConfig(config, rsbuildConfigFragment, {
+        source: {
+          alias: manager.getRuntimeAlias(),
+        },
       });
     });
+  },
+});
 
-    // 3. 排序
-    resolvedMap.forEach((list) => {
-      list.sort((a, b) => (a.stage ?? 0) - (b.stage ?? 0)); // 修正：提供默认值 0
-    });
-    return resolvedMap;
-  }
-
-  private isReplaced(
-    key: string,
-    fid: string,
-    results: Map<string, FeatureResult>,
-  ) {
-    for (const res of results.values()) {
-      const override = res.overrides?.[key];
-      if (override?.mode === 'replace' && override.target === fid) return true;
-    }
-    return false;
-  }
-}
+export * from './types';
+export * from './RuntimeManager';
 
 
---- PATH: packages\core\src\Feature.ts ---
-import type { FeatureParams, FeatureResult } from './types';
-
-export abstract class Feature<K extends string = string, V = unknown> {
-  public get id(): string {
-    return this.constructor.name;
-  }
-  constructor(public readonly key: K) {}
-  public abstract apply(
-    params: FeatureParams<V>,
-  ): Omit<FeatureResult, 'id'> | Promise<Omit<FeatureResult, 'id'>>;
-}
-
-
---- PATH: packages\core\src\Generator.ts ---
+--- PATH: packages\plugin\src\RuntimeManager.ts ---
 import path from 'node:path';
-import type { ResolvedHook } from './Arbiter';
-import type { HookDefinition } from './types';
+import {
+  Arbiter,
+  Materializer,
+  Generator,
+  VersionManager,
+} from '@rsbuild-runtime/core';
+import type { RsbuildConfig, RsbuildPluginAPI } from '@rsbuild/core';
+import type { Feature, HookDefinition } from '@rsbuild-runtime/core';
 
-export class Generator {
+export class RuntimeManager {
+  private arbiter = new Arbiter();
+  private versionManager: VersionManager;
+  private tempDir: string;
+  private root: string;
+
+  constructor(
+    private api: RsbuildPluginAPI,
+    private features: readonly Feature<string, unknown>[],
+    tempDir?: string,
+  ) {
+    this.root = api.context.rootPath;
+    this.tempDir = tempDir || path.join(this.root, 'node_modules/.runtime');
+    this.versionManager = new VersionManager(this.root);
+  }
+
   /**
-   * Generates runners.ts content with static imports and pre-orchestrated execution logic.
+   * @param userConfig The consolidated configuration object.
+   * @param mergeFn The Rsbuild merge utility.
    */
-  public static generateRunners(
-    resolvedMap: Map<string, ResolvedHook[]>,
-    hookDefinitions: HookDefinition[],
-    tempDir: string,
-  ): string {
-    const imports: string[] = [];
-    const runnerEntries: string[] = [];
-    const importMap = new Map<string, string>(); // file -> alias
+  public async execute(
+    userConfig: Record<string, unknown>,
+    mergeFn: (
+      config: RsbuildConfig,
+      ...sources: RsbuildConfig[]
+    ) => RsbuildConfig,
+  ): Promise<RsbuildConfig> {
+    const staticExports: string[] = [];
+    const hookDefinitions: HookDefinition[] = [];
+    let finalRsbuildConfig: RsbuildConfig = {};
 
-    // 1. Prepare imports
-    let aliasCounter = 0;
+    for (const feature of this.features) {
+      // Safely access config for this feature
+      const featureConfig = (userConfig[feature.key] ?? {}) as unknown;
+
+      const result = await feature.apply({
+        root: this.root,
+        config: featureConfig,
+        getV: (pkg: string) => this.versionManager.getV(pkg),
+      });
+
+      this.arbiter.addResult(feature.id, result);
+
+      if (result.defines) hookDefinitions.push(...result.defines);
+      if (result.staticExports) staticExports.push(result.staticExports);
+
+      if (result.config) {
+        finalRsbuildConfig = mergeFn(finalRsbuildConfig, result.config);
+      }
+    }
+
+    this.arbiter.validate(hookDefinitions);
+    const resolvedMap = this.arbiter.resolve();
+
     resolvedMap.forEach((hooks) => {
       for (const hook of hooks) {
-        if (!importMap.has(hook.file)) {
-          const alias = `plugin_${aliasCounter++}`;
-          importMap.set(hook.file, alias);
-
-          // Use relative path from tempDir to the implementation file
-          const relativePath = this.normalizePath(
-            path.relative(tempDir, hook.file).replace(/\.[jt]sx?$/, ''),
-          );
-          imports.push(`import * as ${alias} from './${relativePath}';`);
+        if (hook.content) {
+          Materializer.writeIfChanged(hook.file, hook.content);
         }
       }
     });
 
-    // 2. Build Runners
-    hookDefinitions.forEach((def) => {
-      const implementations = resolvedMap.get(def.key) || [];
-      const fnName = def.key;
+    const runnersContent = Generator.generateRunners(
+      resolvedMap,
+      hookDefinitions,
+      this.tempDir,
+    );
+    const indexContent = Generator.generateIndex(staticExports);
 
-      const callChain = implementations.map((impl) => {
-        const alias = importMap.get(impl.file);
-        const exportName = impl.exportName ?? def.key;
-        return `${alias}.${exportName}`;
-      });
+    Materializer.writeIfChanged(
+      path.join(this.tempDir, 'runners.ts'),
+      runnersContent,
+    );
+    Materializer.writeIfChanged(
+      path.join(this.tempDir, 'index.ts'),
+      indexContent,
+    );
 
-      if (def.type === 'modify') {
-        // Onion Model (Reduce)
-        runnerEntries.push(`
-  ${fnName}: (initialValue, args) => {
-    return [${callChain.join(', ')}].reduce((memo, fn) => {
-      return typeof fn === 'function' ? fn(memo, args) : memo;
-    }, initialValue);
-  },`);
-      } else {
-        // Event Model (ForEach)
-        runnerEntries.push(`
-  ${fnName}: (args) => {
-    [${callChain.join(', ')}].forEach(fn => {
-      if (typeof fn === 'function') fn(args);
-    });
-  },`);
-      }
-    });
+    return finalRsbuildConfig;
+  }
 
-    return `
-${imports.join('\n')}
+  public getRuntimeAlias(): Record<string, string> {
+    return {
+      '@@': this.tempDir,
+      umi: path.join(this.tempDir, 'index.ts'),
+    };
+  }
+}
 
-export const runners = {${runnerEntries.join('\n')}
+
+--- PATH: packages\plugin\src\types.ts ---
+import type { Feature } from '@rsbuild-runtime/core';
+
+/**
+ * Advanced Type Inference:
+ * Maps an array of Feature instances to a consolidated config object.
+ * e.g., [Feature<'routes', IRoute[]>, Feature<'antd', AntdConfig>]
+ * results in { routes?: IRoute[]; antd?: AntdConfig; }
+ */
+export type InferConfigFromFeatures<
+  T extends readonly Feature<string, unknown>[],
+> = {
+  [P in T[number] as P['key']]?: P extends Feature<string, infer V> ? V : never;
 };
-`.trim();
-  }
 
-  /**
-   * Generates the main index.ts (@@/index.ts) that aggregates all static exports.
-   */
-  public static generateIndex(staticExports: string[]): string {
-    return `
-export { runners } from './runners';
-${staticExports.join('\n')}
-`.trim();
-  }
-
-  private static normalizePath(p: string): string {
-    return p.replace(/\\/g, '/');
-  }
-}
-
-
---- PATH: packages\core\src\index.ts ---
-export * from './types';
-export * from './Feature';
-export * from './Arbiter';
-export * from './Materializer';
-export * from './VersionManager';
-export * from './Generator';
-
-
---- PATH: packages\core\src\Materializer.ts ---
-import { createHash } from 'node:crypto';
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
-import { dirname, normalize } from 'node:path';
-
-export class Materializer {
-  /**
-   * 只有在内容真正发生变化时才写入文件。
-   * 严谨性：通过 MD5 哈希对比确保 I/O 原子性，防止 Rsbuild 监听器触发不必要的 HMR 或重启。
-   *
-   * @param filePath 绝对路径
-   * @param content 文件内容
-   * @param encoding 编码格式，默认为 utf-8
-   */
-  public static writeIfChanged(
-    filePath: string,
-    content: string,
-    encoding: BufferEncoding = 'utf-8',
-  ): void {
-    const normalizedPath = normalize(filePath);
-    const dir = dirname(normalizedPath);
-
-    if (!existsSync(dir)) {
-      mkdirSync(dir, { recursive: true });
-    }
-
-    const newHash = this.calculateHash(content);
-
-    // 3. 如果文件已存在，执行对比
-    if (existsSync(normalizedPath)) {
-      try {
-        const oldContent = readFileSync(normalizedPath);
-        const oldHash = this.calculateHash(oldContent);
-
-        if (newHash === oldHash) {
-          // 内容一致，完全跳过磁盘操作
-          return;
-        }
-      } catch (err) {
-        // 如果读取失败（如权限问题），记录警告并尝试覆盖写入
-        console.warn(
-          `[Materializer] Failed to read existing file: ${normalizedPath}`,
-          err,
-        );
-      }
-    }
-
-    // 4. 执行写入
-    try {
-      writeFileSync(normalizedPath, content, { encoding });
-    } catch (err) {
-      // 抛出结构化错误，便于插件内核捕获并中断构建
-      throw new Error(
-        `[Materializer] Failed to write file: ${normalizedPath}\n${String(err)}`,
-      );
-    }
-  }
-
-  /**
-   * 计算内容的 MD5 哈希
-   * 严谨性：使用 MD5 在此场景下速度最快，且对于代码变更检测，其碰撞率可忽略不计。
-   */
-  private static calculateHash(content: string | Buffer): string {
-    return createHash('md5').update(content).digest('hex');
-  }
-}
-
-
---- PATH: packages\core\src\types.ts ---
-import type { RsbuildConfig } from '@rsbuild/core';
-
-export type HookType = 'modify' | 'event';
-
-export interface HookDefinition {
-  key: string;
-  type: HookType;
-  description?: string;
-}
-
-export interface HookImplementation {
-  file: string; // 物理文件路径
-  content?: string; // 动态生成的代码
-  stage?: number; // 优先级
-  exportName?: string;
-}
-
-export interface FeatureResult {
-  config?: RsbuildConfig;
-  staticExports?: string;
-  defines?: HookDefinition[];
-  implements?: Record<string, HookImplementation>;
-  stage?: number;
-  disableFeatures?: string[];
-  overrides?: Record<
+export interface PluginOptions<
+  T extends readonly Feature<string, unknown>[] = readonly Feature<
     string,
-    { mode: 'replace' | 'before' | 'after'; target: string }
-  >;
-}
-
-export interface FeatureParams<V = unknown> {
-  root: string;
-  config: V;
-  getV: (pkg: string) => number;
-}
-
-
---- PATH: packages\core\src\VersionManager.ts ---
-import { createRequire } from 'node:module';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-
-export class VersionManager {
-  private cache = new Map<string, number>();
-  private userRequire: NodeJS.Require;
-
-  constructor(rootPath: string) {
-    // 严谨定位：以用户项目根目录为起点创建 require 实例
-    // 这样可以确保 resolve 到的是用户项目 node_modules 里的包
-    this.userRequire = createRequire(join(rootPath, 'index.js'));
-  }
-
+    unknown
+  >[],
+> {
   /**
-   * 按需获取依赖包的主版本号
+   * List of runtime feature instances.
    */
-  public getV(packageName: string): number {
-    if (this.cache.has(packageName)) {
-      return this.cache.get(packageName)!;
-    }
-
-    let version = 0;
-    try {
-      // 1. 查找包的 package.json 物理路径
-      const pkgPath = this.userRequire.resolve(`${packageName}/package.json`);
-      // 2. 读取内容并解析
-      const pkgContent = JSON.parse(readFileSync(pkgPath, 'utf-8')) as {
-        version: string;
-      };
-      // 3. 提取主版本号
-      version = parseInt(pkgContent.version.split('.')[0], 10) || 0;
-    } catch {
-      // 若 resolve 失败，说明依赖未安装
-      version = 0;
-    }
-
-    this.cache.set(packageName, version);
-    return version;
-  }
+  features: T;
+  /**
+   * Direct configuration for the features.
+   */
+  config?: InferConfigFromFeatures<T>;
+  /**
+   * The directory to store generated files.
+   * Defaults to 'node_modules/.runtime'
+   */
+  tempDir?: string;
 }
 
 
---- PATH: packages\core\tests\Arbiter.test.ts ---
-import { expect, test, describe, beforeEach } from '@rstest/core';
-import { Arbiter } from '../src/Arbiter';
-import type { FeatureResult } from '../src/types';
+--- PATH: packages\plugin\tests\index.test.ts ---
+import { expect, test } from '@rstest/core';
+import { squared } from '../src/index';
 
-void describe('Arbiter', () => {
-  let arbiter: Arbiter;
-
-  void beforeEach(() => {
-    arbiter = new Arbiter();
-  });
-
-  void test('should collect and sort implementations by stage', () => {
-    const f1: FeatureResult = {
-      stage: 10,
-      implements: {
-        hook: { file: 'f1.ts' },
-      },
-    };
-    const f2: FeatureResult = {
-      stage: 5,
-      implements: {
-        hook: { file: 'f2.ts' },
-      },
-    };
-
-    arbiter.addResult('f1', f1);
-    arbiter.addResult('f2', f2);
-
-    const resolved = arbiter.resolve();
-    const hooks = resolved.get('hook');
-
-    expect(hooks).toHaveLength(2);
-    expect(hooks![0].featureId).toBe('f2');
-    expect(hooks![1].featureId).toBe('f1');
-  });
-
-  void test('should handle disableFeatures pruning', () => {
-    const f1: FeatureResult = {
-      implements: { hook: { file: 'f1.ts' } },
-    };
-    const f2: FeatureResult = {
-      disableFeatures: ['f1'],
-      implements: { hook: { file: 'f2.ts' } },
-    };
-
-    arbiter.addResult('f1', f1);
-    arbiter.addResult('f2', f2);
-
-    const resolved = arbiter.resolve();
-    const hooks = resolved.get('hook');
-
-    expect(hooks).toHaveLength(1);
-    expect(hooks![0].featureId).toBe('f2');
-  });
-
-  void test('should handle overrides with replace mode', () => {
-    const f1: FeatureResult = {
-      implements: { hook: { file: 'f1.ts' } },
-    };
-    const f2: FeatureResult = {
-      overrides: {
-        hook: { mode: 'replace', target: 'f1' },
-      },
-      implements: { hook: { file: 'f2.ts' } },
-    };
-
-    arbiter.addResult('f1', f1);
-    arbiter.addResult('f2', f2);
-
-    const resolved = arbiter.resolve();
-    const hooks = resolved.get('hook');
-
-    expect(hooks).toHaveLength(1);
-    expect(hooks![0].featureId).toBe('f2');
-  });
-
-  void test('should prioritize local stage over global stage', () => {
-    const f1: FeatureResult = {
-      stage: 0,
-      implements: {
-        hook: { file: 'f1.ts', stage: 100 },
-      },
-    };
-    const f2: FeatureResult = {
-      stage: 50,
-      implements: {
-        hook: { file: 'f2.ts' },
-      },
-    };
-
-    arbiter.addResult('f1', f1);
-    arbiter.addResult('f2', f2);
-
-    const resolved = arbiter.resolve();
-    const hooks = resolved.get('hook');
-
-    expect(hooks![0].featureId).toBe('f2');
-    expect(hooks![1].featureId).toBe('f1');
-  });
+test('squared', () => {
+  expect(squared(2)).toBe(4);
+  expect(squared(12)).toBe(144);
 });
 
 
---- PATH: packages\core\tests\Generator.test.ts ---
-import { expect, test, describe } from '@rstest/core';
-import { Generator } from '../src/Generator';
-import type { ResolvedHook } from '../src/Arbiter';
-import type { HookDefinition } from '../src/types';
-
-void describe('Generator', () => {
-  const tempDir = '/root/node_modules/.runtime';
-
-  void test('should generate runners with modify (onion) model', () => {
-    const hookDefinitions: HookDefinition[] = [
-      { key: 'rootContainer', type: 'modify' },
-    ];
-
-    const resolvedMap = new Map<string, ResolvedHook[]>();
-    resolvedMap.set('rootContainer', [
-      { featureId: 'f1', file: '/root/f1.ts', stage: 0 },
-      { featureId: 'f2', file: '/root/f2.ts', stage: 10 },
-    ]);
-
-    const content = Generator.generateRunners(
-      resolvedMap,
-      hookDefinitions,
-      tempDir,
-    );
-
-    // Verify static imports (relative paths)
-    expect(content).toContain("import * as plugin_0 from './../../f1';");
-    expect(content).toContain("import * as plugin_1 from './../../f2';");
-
-    // Verify reduce logic for 'modify' type
-    expect(content).toContain(
-      'return [plugin_0.rootContainer, plugin_1.rootContainer].reduce',
-    );
-  });
-
-  void test('should generate runners with event model', () => {
-    const hookDefinitions: HookDefinition[] = [
-      { key: 'onAppMount', type: 'event' },
-    ];
-
-    const resolvedMap = new Map<string, ResolvedHook[]>();
-    resolvedMap.set('onAppMount', [
-      { featureId: 'f1', file: '/root/f1.ts', stage: 0 },
-    ]);
-
-    const content = Generator.generateRunners(
-      resolvedMap,
-      hookDefinitions,
-      tempDir,
-    );
-
-    // Verify forEach logic for 'event' type
-    expect(content).toContain('[plugin_0.onAppMount].forEach');
-    expect(content).not.toContain('.reduce');
-  });
-
-  void test('should handle custom export names', () => {
-    const hookDefinitions: HookDefinition[] = [{ key: 'hook', type: 'event' }];
-
-    const resolvedMap = new Map<string, ResolvedHook[]>();
-    resolvedMap.set('hook', [
-      { featureId: 'f1', file: '/root/f1.ts', exportName: 'customFn' },
-    ]);
-
-    const content = Generator.generateRunners(
-      resolvedMap,
-      hookDefinitions,
-      tempDir,
-    );
-
-    expect(content).toContain('plugin_0.customFn');
-  });
-
-  void test('should generate index with static exports', () => {
-    const staticExports = [
-      "export { useAuth } from './features/auth';",
-      "export { useModel } from './features/model';",
-    ];
-
-    const content = Generator.generateIndex(staticExports);
-
-    expect(content).toContain("export { runners } from './runners';");
-    expect(content).toContain("export { useAuth } from './features/auth';");
-  });
-
-  void test('should normalize windows paths', () => {
-    // Manually testing the private-like behavior via input
-    const hookDefinitions: HookDefinition[] = [{ key: 'h', type: 'event' }];
-    const resolvedMap = new Map<string, ResolvedHook[]>();
-
-    // Simulate Windows absolute path
-    resolvedMap.set('h', [{ featureId: 'f', file: 'C:\\root\\f.ts' }]);
-
-    const content = Generator.generateRunners(
-      resolvedMap,
-      hookDefinitions,
-      'C:\\root\\.runtime',
-    );
-
-    // Path should be './../f' (POSIX style) even on Windows
-    expect(content).toContain("from './../f'");
-    expect(content).not.toContain('\\');
-  });
-});
-
-
---- PATH: packages\core\tests\Materializer.test.ts ---
-import { expect, test, describe, beforeEach, afterEach } from '@rstest/core';
-import fs from 'node:fs';
-import path from 'node:path';
-import { Materializer } from '../src/Materializer';
-
-const TEST_TMP_DIR = path.join(__dirname, '.tmp_materializer');
-
-void describe('Materializer', () => {
-  void beforeEach(() => {
-    if (!fs.existsSync(TEST_TMP_DIR)) {
-      fs.mkdirSync(TEST_TMP_DIR, { recursive: true });
-    }
-  });
-
-  void afterEach(() => {
-    if (fs.existsSync(TEST_TMP_DIR)) {
-      fs.rmSync(TEST_TMP_DIR, { recursive: true, force: true });
-    }
-  });
-
-  void test('should create file and directory on first call', () => {
-    const filePath = path.join(TEST_TMP_DIR, 'deep/dir/test.txt');
-    const content = 'hello rsbuild';
-
-    Materializer.writeIfChanged(filePath, content);
-
-    expect(fs.existsSync(filePath)).toBe(true);
-    expect(fs.readFileSync(filePath, 'utf-8')).toBe(content);
-  });
-
-  void test('should skip writing if content is identical', async () => {
-    const filePath = path.join(TEST_TMP_DIR, 'stable.txt');
-    const content = 'constant content';
-
-    Materializer.writeIfChanged(filePath, content);
-    const firstMtime = fs.statSync(filePath).mtimeMs;
-
-    await new Promise((resolve) => setTimeout(resolve, 10));
-
-    Materializer.writeIfChanged(filePath, content);
-    const secondMtime = fs.statSync(filePath).mtimeMs;
-
-    expect(secondMtime).toBe(firstMtime);
-  });
-
-  void test('should overwrite file if content changes', async () => {
-    const filePath = path.join(TEST_TMP_DIR, 'update.txt');
-    const c1 = 'version 1';
-    const c2 = 'version 2';
-
-    Materializer.writeIfChanged(filePath, c1);
-    const m1 = fs.statSync(filePath).mtimeMs;
-
-    await new Promise((resolve) => setTimeout(resolve, 10));
-
-    Materializer.writeIfChanged(filePath, c2);
-    const m2 = fs.statSync(filePath).mtimeMs;
-
-    expect(fs.readFileSync(filePath, 'utf-8')).toBe(c2);
-    expect(m2).toBeGreaterThan(m1);
-  });
-});
-
-
---- PATH: packages\core\tsconfig.json ---
+--- PATH: packages\plugin\tsconfig.json ---
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "rootDir": "src",
-    "composite": true, // 必须开启，支持被引用
-    "noEmit": false, // 必须改为 false，否则无法作为引用项
-    "emitDeclarationOnly": true, // 关键：只产出类型定义文件，不产生 JS 文件
-    "declaration": true,
-    "declarationMap": true,
-    "outDir": "dist" // 产出到 dist 目录
+    "composite": true,
+    "noEmit": false,
+    "emitDeclarationOnly": true,
+    "outDir": "dist"
   },
-  "include": ["src"]
+  "include": ["src"],
+  "references": [{ "path": "../core" }]
 }
 

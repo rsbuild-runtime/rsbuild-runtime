@@ -6,60 +6,62 @@ import {
   VersionManager,
 } from '@rsbuild-runtime/core';
 import type { RsbuildConfig, RsbuildPluginAPI } from '@rsbuild/core';
-import type {
-  Feature,
-  HookDefinition,
-  FeatureResult,
-} from '@rsbuild-runtime/core';
+import type { Feature, HookDefinition } from '@rsbuild-runtime/core';
 
 export class RuntimeManager {
-  private arbiter = new Arbiter();
-  private versionManager: VersionManager;
-  private tempDir: string;
-  private root: string;
+  private readonly arbiter = new Arbiter();
+  private readonly versionManager: VersionManager;
+  private readonly tempDir: string;
+  private readonly root: string;
 
   constructor(
-    private api: RsbuildPluginAPI,
-    private features: Feature<any, any>[],
+    private readonly api: RsbuildPluginAPI,
+    private readonly features: readonly Feature<string, unknown>[],
     tempDir?: string,
   ) {
     this.root = api.context.rootPath;
-    this.tempDir = tempDir || path.join(this.root, 'node_modules/.runtime');
+    this.tempDir = tempDir ?? path.join(this.root, 'node_modules/.runtime');
     this.versionManager = new VersionManager(this.root);
   }
 
   public async execute(
-    userConfig: Record<string, any>,
+    userConfig: Record<string, unknown>,
+    mergeFn: (
+      config: RsbuildConfig,
+      ...sources: RsbuildConfig[]
+    ) => RsbuildConfig,
   ): Promise<RsbuildConfig> {
     const staticExports: string[] = [];
     const hookDefinitions: HookDefinition[] = [];
-    let mergedRsbuildConfig: RsbuildConfig = {};
+    let finalRsbuildConfig: RsbuildConfig = {};
 
-    // 1. Collect Intents
     for (const feature of this.features) {
+      // 显式断言配置项类型，确保类型安全
+      const featureConfig = (userConfig[feature.key] ?? {}) as unknown;
+
       const result = await feature.apply({
         root: this.root,
-        config: userConfig[feature.key],
-        getV: (pkg) => this.versionManager.getV(pkg),
+        config: featureConfig,
+        getV: (pkg: string) => this.versionManager.getV(pkg),
       });
 
-      const fullResult: FeatureResult = { ...result, id: feature.id };
-      this.arbiter.addResult(feature.id, fullResult);
+      this.arbiter.addResult(feature.id, result);
 
-      // Aggregate metadata
-      if (result.defines) hookDefinitions.push(...result.defines);
-      if (result.staticExports) staticExports.push(result.staticExports);
+      if (result.defines) {
+        hookDefinitions.push(...result.defines);
+      }
+      if (result.staticExports) {
+        staticExports.push(result.staticExports);
+      }
+
       if (result.config) {
-        // Deep merge of rsbuild config fragments can be handled by Rsbuild's utility later
-        mergedRsbuildConfig = result.config;
+        finalRsbuildConfig = mergeFn(finalRsbuildConfig, result.config);
       }
     }
 
-    // 2. Resolve & Validate
     this.arbiter.validate(hookDefinitions);
     const resolvedMap = this.arbiter.resolve();
 
-    // 3. Materialize Implementation Files
     resolvedMap.forEach((hooks) => {
       for (const hook of hooks) {
         if (hook.content) {
@@ -68,7 +70,6 @@ export class RuntimeManager {
       }
     });
 
-    // 4. Generate Core Runners and Entry
     const runnersContent = Generator.generateRunners(
       resolvedMap,
       hookDefinitions,
@@ -85,7 +86,7 @@ export class RuntimeManager {
       indexContent,
     );
 
-    return mergedRsbuildConfig;
+    return finalRsbuildConfig;
   }
 
   public getRuntimeAlias(): Record<string, string> {

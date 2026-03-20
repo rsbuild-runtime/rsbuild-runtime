@@ -1,16 +1,21 @@
 import type { RsbuildPlugin } from '@rsbuild/core';
+import type { Feature } from '@rsbuild-runtime/core';
 import { RuntimeManager } from './RuntimeManager';
 import type { PluginOptions } from './types';
 
-export const pluginRuntime = (options: PluginOptions = {}): RsbuildPlugin => ({
+export const pluginRuntime = <T extends readonly Feature<string, unknown>[]>(
+  options: PluginOptions<T>,
+): RsbuildPlugin => ({
   name: 'rsbuild-plugin-runtime',
   setup(api) {
-    const manager = new RuntimeManager(api, options.features || []);
+    const manager = new RuntimeManager(api, options.features, options.tempDir);
 
     api.modifyRsbuildConfig(async (config, { mergeRsbuildConfig }) => {
-      // Note: The actual userConfig should be passed from the caller (e.g., umi-compat package)
-      // For the generic engine, we assume the host provides the config via options or other means.
-      const rsbuildConfigFragment = await manager.execute({});
+      const userConfig = (options.config ?? {}) as Record<string, unknown>;
+      const rsbuildConfigFragment = await manager.execute(
+        userConfig,
+        mergeRsbuildConfig,
+      );
 
       return mergeRsbuildConfig(config, rsbuildConfigFragment, {
         source: {
@@ -21,5 +26,4 @@ export const pluginRuntime = (options: PluginOptions = {}): RsbuildPlugin => ({
   },
 });
 
-export * from './types';
-export * from './RuntimeManager';
+export { RuntimeManager };
