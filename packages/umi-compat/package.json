@@ -19,13 +19,20 @@
   "dependencies": {
     "@rsbuild-runtime/core": "workspace:*",
     "rsbuild-plugin-runtime": "workspace:*",
-    "jiti": "^2.1.2"
+    "jiti": "^2.1.2",
+    "lodash-es": "^4.17.23"
   },
   "peerDependencies": {
     "@rsbuild/core": ">=1.0.0"
   },
   "devDependencies": {
+    "@rsbuild/core": "^1.7.3",
     "@rslib/core": "^0.20.0",
-    "typescript": "^5.7.2"
+    "@rstest/adapter-rslib": "^0.2.0",
+    "@rstest/core": "^0.8.5",
+    "@types/lodash-es": "^4.17.12",
+    "@types/node": "^24.10.13",
+    "@umijs/types": "^3.5.43",
+    "typescript": "^5.9.3"
   }
 }

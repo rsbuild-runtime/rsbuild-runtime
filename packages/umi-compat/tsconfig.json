@@ -5,7 +5,8 @@
     "composite": true,
     "noEmit": false,
     "emitDeclarationOnly": true,
-    "outDir": "dist"
+    "outDir": "dist",
+    "tsBuildInfoFile": "node_modules/.cache/tsconfig.tsbuildinfo"
   },
   "include": ["src"],
   "references": [{ "path": "../core" }, { "path": "../plugin" }]

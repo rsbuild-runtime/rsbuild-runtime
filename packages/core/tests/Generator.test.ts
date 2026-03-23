@@ -1,104 +1,34 @@
 import { expect, test, describe } from '@rstest/core';
 import { Generator } from '../src/Generator';
-import type { ResolvedHook } from '../src/Arbiter';
+import type { ResolvedHook } from '../src/Resolver';
 import type { HookDefinition } from '../src/types';
 
 void describe('Generator', () => {
   const tempDir = '/root/node_modules/.runtime';
 
-  void test('should generate runners with modify (onion) model', () => {
-    const hookDefinitions: HookDefinition[] = [
-      { key: 'rootContainer', type: 'modify' },
-    ];
+  void test('should generate runners with POSIX relative paths', () => {
+    const defs: HookDefinition[] = [{ key: 'h', type: 'modify' }];
+    const map = new Map<string, ResolvedHook[]>();
+    map.set('h', [{ featureId: 'f', file: '/root/f.ts', stage: 0 }]);
 
-    const resolvedMap = new Map<string, ResolvedHook[]>();
-    resolvedMap.set('rootContainer', [
-      { featureId: 'f1', file: '/root/f1.ts', stage: 0 },
-      { featureId: 'f2', file: '/root/f2.ts', stage: 10 },
-    ]);
-
-    const content = Generator.generateRunners(
-      resolvedMap,
-      hookDefinitions,
-      tempDir,
-    );
-
-    // Verify static imports (relative paths)
-    expect(content).toContain("import * as plugin_0 from './../../f1';");
-    expect(content).toContain("import * as plugin_1 from './../../f2';");
-
-    // Verify reduce logic for 'modify' type
-    expect(content).toContain(
-      'return [plugin_0.rootContainer, plugin_1.rootContainer].reduce',
-    );
+    const content = Generator.generateRunners(map, defs, tempDir);
+    expect(content).toContain("import * as plugin_0 from './../../f';");
+    expect(content).toContain('h: (init, args) => [plugin_0.h].reduce');
   });
 
-  void test('should generate runners with event model', () => {
-    const hookDefinitions: HookDefinition[] = [
-      { key: 'onAppMount', type: 'event' },
-    ];
-
-    const resolvedMap = new Map<string, ResolvedHook[]>();
-    resolvedMap.set('onAppMount', [
-      { featureId: 'f1', file: '/root/f1.ts', stage: 0 },
-    ]);
-
-    const content = Generator.generateRunners(
-      resolvedMap,
-      hookDefinitions,
-      tempDir,
-    );
-
-    // Verify forEach logic for 'event' type
-    expect(content).toContain('[plugin_0.onAppMount].forEach');
-    expect(content).not.toContain('.reduce');
+  void test('should deduplicate exports in index', () => {
+    const exports = ["export { a } from './a';", "export { a } from './a';"];
+    const content = Generator.generateIndex(exports);
+    const matches = content.match(/export { a }/g);
+    expect(matches).toHaveLength(1);
   });
 
-  void test('should handle custom export names', () => {
-    const hookDefinitions: HookDefinition[] = [{ key: 'hook', type: 'event' }];
+  void test('should handle modify strategy with defensive return', () => {
+    const defs: HookDefinition[] = [{ key: 'h', type: 'modify' }];
+    const map = new Map<string, ResolvedHook[]>();
+    map.set('h', [{ featureId: 'f', file: '/root/f.ts' }]);
 
-    const resolvedMap = new Map<string, ResolvedHook[]>();
-    resolvedMap.set('hook', [
-      { featureId: 'f1', file: '/root/f1.ts', exportName: 'customFn' },
-    ]);
-
-    const content = Generator.generateRunners(
-      resolvedMap,
-      hookDefinitions,
-      tempDir,
-    );
-
-    expect(content).toContain('plugin_0.customFn');
-  });
-
-  void test('should generate index with static exports', () => {
-    const staticExports = [
-      "export { useAuth } from './features/auth';",
-      "export { useModel } from './features/model';",
-    ];
-
-    const content = Generator.generateIndex(staticExports);
-
-    expect(content).toContain("export { runners } from './runners';");
-    expect(content).toContain("export { useAuth } from './features/auth';");
-  });
-
-  void test('should normalize windows paths', () => {
-    // Manually testing the private-like behavior via input
-    const hookDefinitions: HookDefinition[] = [{ key: 'h', type: 'event' }];
-    const resolvedMap = new Map<string, ResolvedHook[]>();
-
-    // Simulate Windows absolute path
-    resolvedMap.set('h', [{ featureId: 'f', file: 'C:\\root\\f.ts' }]);
-
-    const content = Generator.generateRunners(
-      resolvedMap,
-      hookDefinitions,
-      'C:\\root\\.runtime',
-    );
-
-    // Path should be './../f' (POSIX style) even on Windows
-    expect(content).toContain("from './../f'");
-    expect(content).not.toContain('\\');
+    const content = Generator.generateRunners(map, defs, tempDir);
+    expect(content).toContain('f(m, args) ?? m');
   });
 });

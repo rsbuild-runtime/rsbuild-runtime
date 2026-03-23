@@ -7,7 +7,8 @@
     "emitDeclarationOnly": true, // 关键：只产出类型定义文件，不产生 JS 文件
     "declaration": true,
     "declarationMap": true,
-    "outDir": "dist" // 产出到 dist 目录
+    "outDir": "dist", // 产出到 dist 目录
+    "tsBuildInfoFile": "node_modules/.cache/tsconfig.tsbuildinfo"
   },
   "include": ["src"]
 }

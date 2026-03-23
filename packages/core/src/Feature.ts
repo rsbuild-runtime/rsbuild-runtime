@@ -1,4 +1,4 @@
-import type { FeatureParams, FeatureResult } from './types';
+import type { FeatureParams, RuntimeIntent } from './types';
 
 export abstract class Feature<K extends string = string, V = unknown> {
   public get id(): string {
@@ -9,5 +9,5 @@ export abstract class Feature<K extends string = string, V = unknown> {
 
   public abstract apply(
     params: FeatureParams<V>,
-  ): Omit<FeatureResult, 'id'> | Promise<Omit<FeatureResult, 'id'>>;
+  ): RuntimeIntent | Promise<RuntimeIntent>;
 }

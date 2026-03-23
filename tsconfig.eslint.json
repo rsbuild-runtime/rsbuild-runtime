@@ -7,6 +7,9 @@
   "include": [
     "packages/**/*.ts",
     "packages/**/*.tsx",
+    "playground/*.ts",
+    "playground/.*.ts",
+    "playground/*.mts",
     "playground/**/*.ts",
     "playground/**/*.tsx",
     "scripts/**/*",

@@ -1,6 +1,7 @@
 import type { RsbuildPlugin } from '@rsbuild/core';
 import type { Feature } from '@rsbuild-runtime/core';
 import { RuntimeManager } from './RuntimeManager';
+import { RuntimeCoreFeature } from './features/RuntimeCoreFeature';
 import type { PluginOptions } from './types';
 
 export const pluginRuntime = <T extends readonly Feature<string, unknown>[]>(
@@ -8,17 +9,21 @@ export const pluginRuntime = <T extends readonly Feature<string, unknown>[]>(
 ): RsbuildPlugin => ({
   name: 'rsbuild-plugin-runtime',
   setup(api) {
-    const manager = new RuntimeManager(api, options.features, options.tempDir);
+    const allFeatures = [
+      new RuntimeCoreFeature(),
+      ...options.features,
+    ] as const;
+    const manager = new RuntimeManager(api, allFeatures, {
+      tempDir: options.tempDir,
+      namespace: options.namespace,
+    });
 
     api.modifyRsbuildConfig(async (config, { mergeRsbuildConfig }) => {
       const userConfig = (options.config ?? {}) as Record<string, unknown>;
-      const rsbuildConfigFragment = await manager.execute(
-        userConfig,
-        mergeRsbuildConfig,
-      );
+      const rsbuildFragment = await manager.execute(userConfig);
 
-      return mergeRsbuildConfig(config, rsbuildConfigFragment, {
-        source: {
+      return mergeRsbuildConfig(config, rsbuildFragment, {
+        resolve: {
           alias: manager.getRuntimeAlias(),
         },
       });
@@ -26,4 +31,6 @@ export const pluginRuntime = <T extends readonly Feature<string, unknown>[]>(
   },
 });
 
-export { RuntimeManager };
+export * from './types';
+export * from './RuntimeManager';
+export * from './features/RuntimeCoreFeature';

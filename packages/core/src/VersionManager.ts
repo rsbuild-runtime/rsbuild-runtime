@@ -11,9 +11,7 @@ export class VersionManager {
   }
 
   public getV(packageName: string): number {
-    if (this.cache.has(packageName)) {
-      return this.cache.get(packageName)!;
-    }
+    if (this.cache.has(packageName)) return this.cache.get(packageName)!;
 
     let version = 0;
     try {

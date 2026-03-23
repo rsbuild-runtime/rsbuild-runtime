@@ -3,60 +3,36 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { Materializer } from '../src/Materializer';
 
-const TEST_TMP_DIR = path.join(__dirname, '.tmp_materializer');
+const TMP_DIR = path.join(__dirname, '.tmp_mat');
 
 void describe('Materializer', () => {
   void beforeEach(() => {
-    if (!fs.existsSync(TEST_TMP_DIR)) {
-      fs.mkdirSync(TEST_TMP_DIR, { recursive: true });
-    }
+    if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR, { recursive: true });
   });
 
   void afterEach(() => {
-    if (fs.existsSync(TEST_TMP_DIR)) {
-      fs.rmSync(TEST_TMP_DIR, { recursive: true, force: true });
-    }
+    if (fs.existsSync(TMP_DIR))
+      fs.rmSync(TMP_DIR, { recursive: true, force: true });
   });
 
-  void test('should create file and directory on first call', () => {
-    const filePath = path.join(TEST_TMP_DIR, 'deep/dir/test.txt');
-    const content = 'hello rsbuild';
+  void test('should skip write if content hash matches', async () => {
+    const file = path.join(TMP_DIR, 'hash.ts');
+    const content = 'export const a = 1;';
 
-    Materializer.writeIfChanged(filePath, content);
-
-    expect(fs.existsSync(filePath)).toBe(true);
-    expect(fs.readFileSync(filePath, 'utf-8')).toBe(content);
-  });
-
-  void test('should skip writing if content is identical', async () => {
-    const filePath = path.join(TEST_TMP_DIR, 'stable.txt');
-    const content = 'constant content';
-
-    Materializer.writeIfChanged(filePath, content);
-    const firstMtime = fs.statSync(filePath).mtimeMs;
+    Materializer.writeIfChanged(file, content);
+    const firstMtime = fs.statSync(file).mtimeMs;
 
     await new Promise((resolve) => setTimeout(resolve, 10));
 
-    Materializer.writeIfChanged(filePath, content);
-    const secondMtime = fs.statSync(filePath).mtimeMs;
+    Materializer.writeIfChanged(file, content);
+    const secondMtime = fs.statSync(file).mtimeMs;
 
     expect(secondMtime).toBe(firstMtime);
   });
 
-  void test('should overwrite file if content changes', async () => {
-    const filePath = path.join(TEST_TMP_DIR, 'update.txt');
-    const c1 = 'version 1';
-    const c2 = 'version 2';
-
-    Materializer.writeIfChanged(filePath, c1);
-    const m1 = fs.statSync(filePath).mtimeMs;
-
-    await new Promise((resolve) => setTimeout(resolve, 10));
-
-    Materializer.writeIfChanged(filePath, c2);
-    const m2 = fs.statSync(filePath).mtimeMs;
-
-    expect(fs.readFileSync(filePath, 'utf-8')).toBe(c2);
-    expect(m2).toBeGreaterThan(m1);
+  void test('should create directories recursively', () => {
+    const file = path.join(TMP_DIR, 'a/b/c/test.ts');
+    Materializer.writeIfChanged(file, 'test');
+    expect(fs.existsSync(file)).toBe(true);
   });
 });

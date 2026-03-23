@@ -15,8 +15,16 @@
     "declarationMap": true,
     "baseUrl": ".",
     "paths": {
-      "@rsbuild-runtime/*": ["packages/*/src"],
-      "rsbuild-plugin-runtime": ["packages/plugin/src"]
+      "@rsbuild-runtime/core": ["packages/core/src/index.ts"],
+      "@rsbuild-runtime/core/*": ["packages/core/src/*"],
+
+      // 2. 映射 plugin 包 (注意你的目录名是 plugin，包名是 rsbuild-plugin-runtime)
+      "rsbuild-plugin-runtime": ["packages/plugin/src/index.ts"],
+      "rsbuild-plugin-runtime/*": ["packages/plugin/src/*"],
+
+      // 3. 映射 umi-compat 包 (目录名 umi-compat，包名 rsbuild-plugin-umi)
+      "rsbuild-plugin-umi": ["packages/umi-compat/src/index.ts"],
+      "rsbuild-plugin-umi/*": ["packages/umi-compat/src/*"]
     }
   }
 }

@@ -1,18 +1,32 @@
 import { defineConfig } from '@rsbuild/core';
 import { pluginReact } from '@rsbuild/plugin-react';
-import { pluginUmiMigration } from 'rsbuild-plugin-runtime';
+import { pluginUmi } from '../packages/umi-compat/src/index';
 import { pluginLess } from '@rsbuild/plugin-less';
+import path from 'node:path';
 
 export default defineConfig({
   plugins: [
     pluginReact(),
-    pluginUmiMigration(),
+    pluginUmi(),
     pluginLess({
       lessLoaderOptions: {
         implementation: require('less'),
       },
     }),
   ],
+  resolve: {
+    alias: {
+      '@rsbuild-runtime/core': path.resolve(__dirname, '../packages/core/src'),
+      'rsbuild-plugin-runtime': path.resolve(
+        __dirname,
+        '../packages/plugin/src',
+      ),
+      'rsbuild-plugin-umi': path.resolve(
+        __dirname,
+        '../packages/umi-compat/src',
+      ),
+    },
+  },
   output: {
     cssModules: {
       auto(resource) {

@@ -1,4 +1,5 @@
 {
+  "name": "playground",
   "private": true,
   "scripts": {
     "dev": "scripts debug rsbuild dev",
@@ -34,6 +35,7 @@
     "@repo/scripts": "workspace:*",
     "@rsbuild/core": "^1.7.3",
     "@rsbuild/plugin-less": "^1.6.0",
+    "rsbuild-plugin-umi": "workspace:*",
     "@rsbuild/plugin-react": "^1.4.5",
     "@types/history": "^4.7.11",
     "@types/lodash-es": "^4.17.12",

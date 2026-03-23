@@ -1,283 +1,50 @@
 
---- PATH: packages\plugin\package.json ---
-{
-  "name": "rsbuild-plugin-runtime",
-  "version": "1.0.0",
-  "description": "基于静态编排与代码生成的 Rsbuild 运行时框架插件",
-  "type": "module",
-  "main": "./dist/index.cjs",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
-    }
-  },
-  "files": [
-    "dist"
-  ],
-  "scripts": {
-    "build": "rslib build",
-    "dev": "rslib build --watch",
-    "format": "prettier --write .",
-    "lint": "eslint .",
-    "test": "rstest",
-    "test:watch": "rstest --watch"
-  },
-  "dependencies": {
-    "@rsbuild-runtime/core": "workspace:*",
-    "jiti": "^2.1.2",
-    "fs-extra": "^11.2.0",
-    "lodash-es": "^4.17.21"
-  },
-  "peerDependencies": {
-    "@rsbuild/core": ">=1.0.0"
-  },
-  "devDependencies": {
-    "@rsbuild-runtime/core": "workspace:*",
-    "@rsbuild/core": "^1.7.3",
-    "@rslib/core": "^0.19.6",
-    "@rstest/adapter-rslib": "^0.2.0",
-    "@rstest/core": "^0.8.5",
-    "@types/lodash-es": "^4.17.12",
-    "@types/node": "^24.10.13",
-    "@umijs/types": "^3.5.43",
-    "typescript": "^5.9.3"
-  },
-  "publishConfig": {
-    "access": "public"
-  }
-}
+--- PATH: playground\node_modules\.runtime\features\routes\runtime.tsx ---
+import React from 'react';
+import { Router, Switch, Route, Redirect } from 'react-router-dom';
+import { createBrowserHistory } from 'history';
+const history = createBrowserHistory();
+export const rootContainer = (container) => {
+  return (
+    <Router history={history}>
+      <Switch>
+        <Redirect key="/" exact={true} from="/" to="/home" />
 
+<Route key="undefined" path="undefined" exact={false} render={(props) => {
+  const Component = require('@/components/wrapper').default(require('@/layouts').default);
+  return (
+    <Component {...props}>
+      <Switch>
+        <Route key="/home" path="/home" exact={true} component={require('@/pages/home').default} />
 
---- PATH: packages\plugin\rslib.config.ts ---
-import { defineConfig } from '@rslib/core';
-
-export default defineConfig({
-  lib: [
-    {
-      format: 'esm',
-      syntax: ['node 18'],
-      dts: true,
-    },
-    {
-      format: 'cjs',
-      syntax: ['node 18'],
-    },
-  ],
-});
-
-
---- PATH: packages\plugin\rstest.config.ts ---
-import { withRslibConfig } from '@rstest/adapter-rslib';
-import { defineConfig } from '@rstest/core';
-
-export default defineConfig({
-  extends: withRslibConfig(),
-});
-
-
---- PATH: packages\plugin\src\index.ts ---
-import type { RsbuildPlugin } from '@rsbuild/core';
-import { RuntimeManager } from './RuntimeManager';
-import type { PluginOptions } from './types';
-import type { Feature } from '@rsbuild-runtime/core';
-
-/**
- * Generic runtime plugin for Rsbuild.
- * Supports auto-inference of configuration based on provided features.
- */
-export const pluginRuntime = <T extends readonly Feature<string, unknown>[]>(
-  options: PluginOptions<T>,
-): RsbuildPlugin => ({
-  name: 'rsbuild-plugin-runtime',
-  setup(api) {
-    const manager = new RuntimeManager(api, options.features, options.tempDir);
-
-    api.modifyRsbuildConfig(async (config, { mergeRsbuildConfig }) => {
-      // Use the config passed from options or an empty object
-      const userConfig = options.config || {};
-
-      // Execute orchestration and obtain the merged Rsbuild configuration fragments
-      const rsbuildConfigFragment = await manager.execute(
-        userConfig,
-        mergeRsbuildConfig,
-      );
-
-      return mergeRsbuildConfig(config, rsbuildConfigFragment, {
-        source: {
-          alias: manager.getRuntimeAlias(),
-        },
-      });
-    });
-  },
-});
-
-export * from './types';
-export * from './RuntimeManager';
-
-
---- PATH: packages\plugin\src\RuntimeManager.ts ---
-import path from 'node:path';
-import {
-  Arbiter,
-  Materializer,
-  Generator,
-  VersionManager,
-} from '@rsbuild-runtime/core';
-import type { RsbuildConfig, RsbuildPluginAPI } from '@rsbuild/core';
-import type { Feature, HookDefinition } from '@rsbuild-runtime/core';
-
-export class RuntimeManager {
-  private arbiter = new Arbiter();
-  private versionManager: VersionManager;
-  private tempDir: string;
-  private root: string;
-
-  constructor(
-    private api: RsbuildPluginAPI,
-    private features: readonly Feature<string, unknown>[],
-    tempDir?: string,
-  ) {
-    this.root = api.context.rootPath;
-    this.tempDir = tempDir || path.join(this.root, 'node_modules/.runtime');
-    this.versionManager = new VersionManager(this.root);
-  }
-
-  /**
-   * @param userConfig The consolidated configuration object.
-   * @param mergeFn The Rsbuild merge utility.
-   */
-  public async execute(
-    userConfig: Record<string, unknown>,
-    mergeFn: (
-      config: RsbuildConfig,
-      ...sources: RsbuildConfig[]
-    ) => RsbuildConfig,
-  ): Promise<RsbuildConfig> {
-    const staticExports: string[] = [];
-    const hookDefinitions: HookDefinition[] = [];
-    let finalRsbuildConfig: RsbuildConfig = {};
-
-    for (const feature of this.features) {
-      // Safely access config for this feature
-      const featureConfig = (userConfig[feature.key] ?? {}) as unknown;
-
-      const result = await feature.apply({
-        root: this.root,
-        config: featureConfig,
-        getV: (pkg: string) => this.versionManager.getV(pkg),
-      });
-
-      this.arbiter.addResult(feature.id, result);
-
-      if (result.defines) hookDefinitions.push(...result.defines);
-      if (result.staticExports) staticExports.push(result.staticExports);
-
-      if (result.config) {
-        finalRsbuildConfig = mergeFn(finalRsbuildConfig, result.config);
-      }
-    }
-
-    this.arbiter.validate(hookDefinitions);
-    const resolvedMap = this.arbiter.resolve();
-
-    resolvedMap.forEach((hooks) => {
-      for (const hook of hooks) {
-        if (hook.content) {
-          Materializer.writeIfChanged(hook.file, hook.content);
-        }
-      }
-    });
-
-    const runnersContent = Generator.generateRunners(
-      resolvedMap,
-      hookDefinitions,
-      this.tempDir,
-    );
-    const indexContent = Generator.generateIndex(staticExports);
-
-    Materializer.writeIfChanged(
-      path.join(this.tempDir, 'runners.ts'),
-      runnersContent,
-    );
-    Materializer.writeIfChanged(
-      path.join(this.tempDir, 'index.ts'),
-      indexContent,
-    );
-
-    return finalRsbuildConfig;
-  }
-
-  public getRuntimeAlias(): Record<string, string> {
-    return {
-      '@@': this.tempDir,
-      umi: path.join(this.tempDir, 'index.ts'),
-    };
-  }
-}
-
-
---- PATH: packages\plugin\src\types.ts ---
-import type { Feature } from '@rsbuild-runtime/core';
-
-/**
- * Advanced Type Inference:
- * Maps an array of Feature instances to a consolidated config object.
- * e.g., [Feature<'routes', IRoute[]>, Feature<'antd', AntdConfig>]
- * results in { routes?: IRoute[]; antd?: AntdConfig; }
- */
-export type InferConfigFromFeatures<
-  T extends readonly Feature<string, unknown>[],
-> = {
-  [P in T[number] as P['key']]?: P extends Feature<string, infer V> ? V : never;
+<Route key="/user" path="/user" exact={false} render={(props) => {
+  const Component = () => <React.Fragment>{props.children}</React.Fragment>;
+  return (
+    <Component {...props}>
+      <Switch>
+        <Route key="/user/info" path="/user/info" exact={true} component={require('@/pages/user/info').default} />
+<Route key="/user/dashboard" path="/user/dashboard" exact={true} component={require('@/pages/user/dashboard').default} />
+      </Switch>
+    </Component>
+  );
+}} />
+      </Switch>
+    </Component>
+  );
+}} />
+      </Switch>
+    </Router>
+  );
 };
 
-export interface PluginOptions<
-  T extends readonly Feature<string, unknown>[] = readonly Feature<
-    string,
-    unknown
-  >[],
-> {
-  /**
-   * List of runtime feature instances.
-   */
-  features: T;
-  /**
-   * Direct configuration for the features.
-   */
-  config?: InferConfigFromFeatures<T>;
-  /**
-   * The directory to store generated files.
-   * Defaults to 'node_modules/.runtime'
-   */
-  tempDir?: string;
-}
+--- PATH: playground\node_modules\.runtime\index.ts ---
+export { runners } from './runners';
+export { runners } from './runners';
+export { useHistory, useLocation, useParams, Link, NavLink } from 'react-router-dom';
 
+--- PATH: playground\node_modules\.runtime\runners.ts ---
+import * as plugin_0 from './../../features/routes/runtime';
 
---- PATH: packages\plugin\tests\index.test.ts ---
-import { expect, test } from '@rstest/core';
-import { squared } from '../src/index';
-
-test('squared', () => {
-  expect(squared(2)).toBe(4);
-  expect(squared(12)).toBe(144);
-});
-
-
---- PATH: packages\plugin\tsconfig.json ---
-{
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": {
-    "rootDir": "src",
-    "composite": true,
-    "noEmit": false,
-    "emitDeclarationOnly": true,
-    "outDir": "dist"
-  },
-  "include": ["src"],
-  "references": [{ "path": "../core" }]
-}
-
+export const runners = {
+  rootContainer: (init, args) => [plugin_0.rootContainer].reduce((m, f) => (typeof f === 'function' ? f(m, args) ?? m : m), init),
+};

@@ -1,5 +1,5 @@
 import path from 'node:path';
-import type { ResolvedHook } from './Arbiter';
+import type { ResolvedHook } from './Resolver';
 import type { HookDefinition } from './types';
 
 export class Generator {
@@ -12,61 +12,53 @@ export class Generator {
     const runnerEntries: string[] = [];
     const importMap = new Map<string, string>();
 
-    let aliasCounter = 0;
+    let counter = 0;
     resolvedMap.forEach((hooks) => {
-      for (const hook of hooks) {
-        if (!importMap.has(hook.file)) {
-          const alias = `plugin_${aliasCounter++}`;
+      hooks.forEach((hook) => {
+        if (hook.file && !importMap.has(hook.file)) {
+          const alias = `plugin_${counter++}`;
           importMap.set(hook.file, alias);
-          // Path Consistency: Normalize to POSIX for imports
-          const relativePath = this.normalizePath(
-            path.relative(tempDir, hook.file).replace(/\.[jt]sx?$/, ''),
-          );
-          imports.push(`import * as ${alias} from './${relativePath}';`);
+
+          const absoluteHookFile = path.isAbsolute(hook.file)
+            ? hook.file
+            : path.join(tempDir, hook.file);
+
+          let relPath = path
+            .relative(tempDir, absoluteHookFile)
+            .replace(/\\/g, '/')
+            .replace(/\.[jt]sx?$/, '');
+
+          if (!relPath.startsWith('.')) {
+            relPath = `./${relPath}`;
+          }
+
+          imports.push(`import * as ${alias} from '${relPath}';`);
         }
-      }
+      });
     });
 
     hookDefinitions.forEach((def) => {
-      const implementations = resolvedMap.get(def.key) || [];
-      const fnName = def.key;
-      const callChain = implementations.map((impl) => {
-        const alias = importMap.get(impl.file);
-        return `${alias}.${impl.exportName ?? def.key}`;
+      if (def.key === 'staticExports') return;
+
+      const hooks = resolvedMap.get(def.key) ?? [];
+      const callChain = hooks.map((h) => {
+        const alias = importMap.get(h.file!);
+        return `${alias}.${h.exportName ?? def.key}`;
       });
 
-      if (def.type === 'modify') {
-        // Runtime Robustness: Defensive Onion Model
-        runnerEntries.push(`
-  ${fnName}: (initialValue, args) => {
-    return [${callChain.join(', ')}].reduce((memo, fn) => {
-      if (typeof fn !== 'function') return memo;
-      const nextMemo = fn(memo, args);
-      return nextMemo === undefined ? memo : nextMemo;
-    }, initialValue);
-  },`);
-      } else {
-        runnerEntries.push(`
-  ${fnName}: (args) => {
-    [${callChain.join(', ')}].forEach(fn => {
-      if (typeof fn === 'function') fn(args);
-    });
-  },`);
-      }
+      const body =
+        def.type === 'modify'
+          ? `(init: any, args: any) => [${callChain.join(',')}].reduce((m, f) => (typeof f === 'function' ? f(m, args) ?? m : m), init)`
+          : `(args: any) => [${callChain.join(',')}].forEach(f => typeof f === 'function' && f(args))`;
+
+      runnerEntries.push(`  ${def.key}: ${body},`);
     });
 
-    return `${imports.join('\n')}\n\nexport const runners = {${runnerEntries.join('\n')}\n};`.trim();
+    return `${imports.join('\n')}\n\nexport const runners = {\n${runnerEntries.join('\n')}\n};\n`;
   }
 
-  /**
-   * Updated: Static Export Conflict Detection
-   */
   public static generateIndex(staticExports: string[]): string {
-    const exportLines = Array.from(new Set(staticExports)); // Basic deduplication
-    return `export { runners } from './runners';\n${exportLines.join('\n')}`.trim();
-  }
-
-  private static normalizePath(p: string): string {
-    return p.replace(/\\/g, '/');
+    const uniqueExports = Array.from(new Set(staticExports));
+    return `${uniqueExports.join('\n')}\n`;
   }
 }
