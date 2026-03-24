@@ -5,11 +5,12 @@ import { UmiAliasFeature } from './features/alias';
 import { UmiRoutesFeature } from './features/routes';
 import { UmiEntryFeature } from './features/entry';
 import { UmiHistoryFeature } from './features/history';
+import { UmiAppConfigFeature } from './features/appConfig';
 
 /**
  * Umi v3 compatibility preset for Rsbuild.
  * Orchestrates Umi-specific features using the generic runtime engine.
- *
+ * 
  * @param umiOptions Optional inline configuration to override .umirc.ts
  */
 export const pluginUmi = (
@@ -19,16 +20,17 @@ export const pluginUmi = (
   setup(api) {
     const root = api.context.rootPath;
 
-    // Define the suite of features required to replicate Umi v3 behavior
+    // Suite of features including the AppConfig hook definer
     const features = [
       new RuntimeCoreFeature(),
       new UmiEntryFeature(),
+      new UmiAppConfigFeature(),
       new UmiAliasFeature(),
       new UmiRoutesFeature(),
       new UmiHistoryFeature(),
     ] as const;
 
-    // Initialize the manager with the 'umi' namespace to ensure compatibility with legacy code
+    // Initialize the manager with the 'umi' namespace
     const manager = new RuntimeManager(api, features, {
       namespace: 'umi',
     });
@@ -37,10 +39,10 @@ export const pluginUmi = (
       // 1. Resolve configuration (Priority: inline options > config file)
       const umiConfig = umiOptions ?? (await loadUmiConfig(root));
 
-      // 2. Run the orchestration pipeline (Apply -> Arbitrate -> Materialize)
+      // 2. Run the orchestration pipeline
       const rsbuildFragment: RsbuildConfig = await manager.execute(umiConfig);
 
-      // 3. Finalize Rsbuild configuration with dynamic aliases and entry overrides
+      // 3. Finalize Rsbuild configuration
       return mergeRsbuildConfig(config, rsbuildFragment, {
         resolve: {
           alias: manager.getRuntimeAlias(),

@@ -1,32 +1,80 @@
-import type { RuntimeIntent } from '@rsbuild-runtime/core';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { createJiti } from 'jiti';
 import { Feature } from '@rsbuild-runtime/core';
+import type { RuntimeIntent, FeatureParams } from '@rsbuild-runtime/core';
 
 export class UmiAppConfigFeature extends Feature {
-  public apply(): RuntimeIntent {
-    const bridgeFile = 'features/app/bridge.ts';
+  constructor() {
+    super('__umi_app_config__');
+  }
+
+  public async apply({ root }: FeatureParams<unknown>): Promise<RuntimeIntent> {
+    const bridgeFile = 'features/app.ts';
+    const possibleAppFiles = ['src/app.tsx', 'src/app.ts', 'src/app.jsx', 'src/app.js'];
+    const appFile = possibleAppFiles.find((file) => existsSync(join(root, file)));
+
+    let exportedHooks: string[] = [];
+
+    if (appFile) {
+      const appAbsPath = join(root, appFile);
+      const jiti = createJiti(import.meta.url, {
+        interopDefault: true,
+        fsCache: false,
+        moduleCache: false,
+        // Ensure we don't execute browser-only code that might break Node
+        alias: {
+          // Optional: mock browser-only imports if needed
+        },
+      });
+
+      try {
+        const appModule = await jiti.import<Record<string, unknown>>(appAbsPath, {
+          default: true,
+        });
+        exportedHooks = Object.keys(appModule);
+      } catch (err) {
+        // Fallback: if execution fails (due to browser globals), 
+        // the bridge will still be generated but might be empty.
+        console.warn(`[Runtime] Failed to parse ${appFile} via jiti: ${String(err)}`);
+      }
+    }
+
+    const hasOnRouteChange = exportedHooks.includes('onRouteChange');
+    const hasPatchRoutes = exportedHooks.includes('patchRoutes');
+
+    const appImportCode = appFile ? "import * as app from '@/app';" : '';
 
     return {
       defines: [
-        { key: 'onRouteChange', type: 'event' },
-        { key: 'patchRoutes', type: 'event' },
+        {
+          key: 'onRouteChange',
+          type: 'event',
+          description: 'Fired when the route changes',
+        },
+        {
+          key: 'patchRoutes',
+          type: 'event',
+          description: 'Allows modifying routes at runtime',
+        },
       ],
-      // 1. 先生成一个聚合了所有逻辑的静态文件
       files: [
         {
           path: bridgeFile,
           content: `
-import * as app from '@/app';
+// @ts-nocheck
+${appImportCode}
 
-export const onRouteChange = (args: any) => {
-  if (typeof app.onRouteChange === 'function') app.onRouteChange(args);
+export const onRouteChange = (args: unknown): void => {
+  ${hasOnRouteChange ? 'app.onRouteChange(args);' : '// No onRouteChange'}
 };
 
-export const patchRoutes = (args: any) => {
-  if (typeof app.patchRoutes === 'function') app.patchRoutes(args);
-};`.trim(),
+export const patchRoutes = (args: unknown): void => {
+  ${hasPatchRoutes ? 'app.patchRoutes(args);' : '// No patchRoutes'}
+};
+          `.trim() + '\n',
         },
       ],
-      // 2. 让钩子实现指向这个已存在的文件，而不提供 content（避免触发 Materializer 写入）
       implements: {
         onRouteChange: {
           file: bridgeFile,

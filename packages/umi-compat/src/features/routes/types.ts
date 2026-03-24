@@ -12,8 +12,9 @@ export interface UmiRoute {
 }
 
 export interface RouteAdapter {
-  genImports: () => string;
-  genRuntimeCode: (routes: UmiRoute[]) => string;
+  genRoutesData: (routes: UmiRoute[], dynamicImport?: Record<string, unknown>) => string;
+  genRenderComponent: (loadingPath?: string) => string;
+  genRuntimeCode: () => string;
   genExports: () => string;
 }
 
