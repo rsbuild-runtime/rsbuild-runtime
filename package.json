@@ -2,8 +2,8 @@
   "name": "rsbuild-runtime",
   "version": "1.0.0",
   "scripts": {
-    "build": "rslib build",
-    "dev": "rslib build --watch",
+    "build": "pnpm -r --filter \"./packages/**\" build",
+    "dev": "pnpm run build && pnpm --filter playground dev",
     "format": "prettier --write .",
     "lint": "eslint .",
     "test": "rstest",

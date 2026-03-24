@@ -93,6 +93,9 @@ importers:
       '@rsbuild-runtime/core':
         specifier: workspace:*
         version: link:../core
+      history:
+        specifier: ^4.10.1
+        version: 4.10.1
       jiti:
         specifier: ^2.1.2
         version: 2.6.1
@@ -115,6 +118,9 @@ importers:
       '@rstest/core':
         specifier: ^0.8.5
         version: 0.8.5(jsdom@16.7.0)
+      '@types/history':
+        specifier: ^4.7.11
+        version: 4.7.11
       '@types/lodash-es':
         specifier: ^4.17.12
         version: 4.17.12

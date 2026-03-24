@@ -11,25 +11,29 @@ export class UmiRoutesFeature extends Feature<'routes', UmiRoute[]> {
 
   public apply({ getV, config }: FeatureParams<UmiRoute[]>): RuntimeIntent {
     const routerVersion = getV('react-router-dom');
-    const adapter = routerVersion >= 6 ? v5Adapter : v5Adapter; // v6 placeholder
+    const adapter = routerVersion >= 6 ? v5Adapter : v5Adapter;
 
-    // 1. Normalize routes based on Umi rules
     const normalizedRoutes = getNormalizedRoutes(config ?? []);
 
-    // 2. Generate runtime content via adapter
-    const runtimeContent = `
+    const runtimeContent = `// @ts-nocheck
 ${adapter.genImports()}
+
 ${adapter.genRuntimeCode(normalizedRoutes)}
     `.trim();
 
     return {
+      stage: 100,
       implements: {
         rootContainer: {
           file: 'features/routes/runtime.tsx',
           content: runtimeContent,
         },
         staticExports: {
-          content: adapter.genExports(),
+          // Combine runtime API exports from adapter and type exports from feature
+          content: `
+${adapter.genExports()}
+export type { OnRouteChange, RouteChangeArgs } from './features/routes/types';
+          `.trim(),
         },
       },
     };

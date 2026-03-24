@@ -12,6 +12,7 @@ import type {
   Feature,
   HookDefinition,
   FeatureResult,
+  OutputFile,
 } from '@rsbuild-runtime/core';
 
 export class RuntimeManager {
@@ -33,19 +34,29 @@ export class RuntimeManager {
     this.versionManager = new VersionManager(this.root);
   }
 
+  /**
+   * Orchestrates the runtime generation pipeline.
+   * 1. Collects intents from features.
+   * 2. Resolves conflicts via Resolver.
+   * 3. Materializes physical files and internal modules.
+   */
   public async execute(
     userConfig: Record<string, unknown>,
   ): Promise<RsbuildConfig> {
     const hookDefinitions: HookDefinition[] = [];
+    const standaloneFiles: OutputFile[] = [];
     let finalRsbuildConfig: RsbuildConfig = {};
 
+    // Phase 1: Collection
     for (const feature of this.features) {
       const featureConfig = (userConfig[feature.key] ?? {}) as unknown;
 
       const intent = await feature.apply({
         root: this.root,
         config: featureConfig,
+        allConfig: userConfig,
         namespace: this.namespace,
+        tempDir: this.tempDir,
         getV: (pkg) => this.versionManager.getV(pkg),
         hasFeature: (id) => this.features.some((f) => f.id === id),
       });
@@ -56,6 +67,10 @@ export class RuntimeManager {
       };
 
       this.resolver.addIntent(feature.id, result);
+
+      if (intent.files) {
+        standaloneFiles.push(...intent.files);
+      }
 
       if (result.defines) {
         hookDefinitions.push(...result.defines);
@@ -69,9 +84,20 @@ export class RuntimeManager {
       }
     }
 
+    // Phase 2: Orchestration
     this.resolver.validate(hookDefinitions);
     const resolvedMap = this.resolver.resolve();
 
+    // Phase 3: Materialization
+    // A. Write standalone files defined by features
+    for (const file of standaloneFiles) {
+      const fullPath = path.isAbsolute(file.path)
+        ? file.path
+        : path.join(this.tempDir, file.path);
+      Materializer.writeIfChanged(fullPath, file.content);
+    }
+
+    // B. Write individual orchestrated hook implementations
     resolvedMap.forEach((hooks) => {
       hooks.forEach((hook) => {
         if (hook.content && hook.file) {
@@ -83,6 +109,7 @@ export class RuntimeManager {
       });
     });
 
+    // C. Generate Runners (Logic and interface are now in one file)
     const runnersContent = Generator.generateRunners(
       resolvedMap,
       hookDefinitions,
@@ -93,6 +120,7 @@ export class RuntimeManager {
       runnersContent,
     );
 
+    // D. Generate Public API Index
     const staticExports = (resolvedMap.get('staticExports') ?? []).map(
       (h) => h.content ?? '',
     );
@@ -107,6 +135,9 @@ export class RuntimeManager {
     return finalRsbuildConfig;
   }
 
+  /**
+   * Provides necessary aliases for internal modules and the public entry.
+   */
   public getRuntimeAlias(): Record<string, string> {
     return {
       '@@': this.tempDir,
@@ -114,6 +145,9 @@ export class RuntimeManager {
     };
   }
 
+  /**
+   * Validates if the project's tsconfig.json is properly configured for the runtime.
+   */
   private validateTsConfigAlias(): void {
     const tsConfigPath = path.join(this.root, 'tsconfig.json');
     if (!fs.existsSync(tsConfigPath)) return;

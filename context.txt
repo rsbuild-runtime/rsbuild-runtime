@@ -1,50 +1,138 @@
 
---- PATH: playground\node_modules\.runtime\features\routes\runtime.tsx ---
+--- PATH: playground\node_modules\.runtime\entry.tsx ---
 import React from 'react';
+import ReactDOM from "react-dom";
+import { runners } from './runners';
+
+async function bootstrap() {
+  const rootContainer = runners.rootContainer(null, {});
+  ReactDOM.render(rootContainer, document.getElementById('root'));
+}
+bootstrap().catch(console.error);
+
+--- PATH: playground\node_modules\.runtime\features\routes\runtime.tsx ---
+import React, { Suspense, lazy } from 'react';
 import { Router, Switch, Route, Redirect } from 'react-router-dom';
 import { createBrowserHistory } from 'history';
+// @ts-nocheck
 const history = createBrowserHistory();
-export const rootContainer = (container) => {
-  return (
+export const rootContainer = (container: React.ReactElement | null) => {
+  const routesTree = (
     <Router history={history}>
       <Switch>
+        
         <Redirect key="/" exact={true} from="/" to="/home" />
-
-<Route key="undefined" path="undefined" exact={false} render={(props) => {
-  const Component = require('@/components/wrapper').default(require('@/layouts').default);
-  return (
-    <Component {...props}>
-      <Switch>
-        <Route key="/home" path="/home" exact={true} component={require('@/pages/home').default} />
-
-<Route key="/user" path="/user" exact={false} render={(props) => {
-  const Component = () => <React.Fragment>{props.children}</React.Fragment>;
-  return (
-    <Component {...props}>
-      <Switch>
-        <Route key="/user/info" path="/user/info" exact={true} component={require('@/pages/user/info').default} />
-<Route key="/user/dashboard" path="/user/dashboard" exact={true} component={require('@/pages/user/dashboard').default} />
-      </Switch>
-    </Component>
-  );
-}} />
-      </Switch>
-    </Component>
-  );
-}} />
+        <Route
+          key="route-1"
+          
+          exact={false}
+          render={(props: unknown) => {
+          const RawComponent = require('@/layouts').default;
+          const wrappers: React.ComponentType<any>[] = [require('@/components/wrapper').default];
+          const FinalComponent = wrappers.reduceRight((acc, Wrapper) => {
+            return (p: Record<string, unknown>) => <Wrapper {...p}>{acc(p)}</Wrapper>;
+          }, (p: Record<string, unknown>) => <RawComponent {...p} />);
+          return (
+            <Suspense fallback={null}>
+              <FinalComponent {...(props as Record<string, unknown>)}>
+            <Switch>
+                <Route
+                  key="/home"
+                  path="/home"
+                  exact={true}
+                  render={(props: unknown) => {
+                  const FinalComponent = require('@/pages/home').default;
+                  return (
+                    <Suspense fallback={null}>
+                      <FinalComponent {...(props as Record<string, unknown>)}>
+                      </FinalComponent>
+                    </Suspense>
+                  );
+                  }}
+                />
+                <Route
+                  key="/user"
+                  path="/user"
+                  exact={false}
+                  render={(props: unknown) => {
+                  const FinalComponent = (props: Record<string, unknown>) => <React.Fragment>{props.children}</React.Fragment>;
+                  return (
+                    <Suspense fallback={null}>
+                      <FinalComponent {...(props as Record<string, unknown>)}>
+                    <Switch>
+                        <Route
+                          key="/user/info"
+                          path="/user/info"
+                          exact={true}
+                          render={(props: unknown) => {
+                          const FinalComponent = lazy(() => import('@/pages/user/info'));
+                          return (
+                            <Suspense fallback={null}>
+                              <FinalComponent {...(props as Record<string, unknown>)}>
+                              </FinalComponent>
+                            </Suspense>
+                          );
+                          }}
+                        />
+                        <Route
+                          key="/user/dashboard"
+                          path="/user/dashboard"
+                          exact={true}
+                          render={(props: unknown) => {
+                          const FinalComponent = lazy(() => import('@/pages/user/dashboard'));
+                          return (
+                            <Suspense fallback={null}>
+                              <FinalComponent {...(props as Record<string, unknown>)}>
+                              </FinalComponent>
+                            </Suspense>
+                          );
+                          }}
+                        />
+                    </Switch>
+                      </FinalComponent>
+                    </Suspense>
+                  );
+                  }}
+                />
+            </Switch>
+              </FinalComponent>
+            </Suspense>
+          );
+          }}
+        />
       </Switch>
     </Router>
   );
+
+  if (container) {
+    return React.cloneElement(container, { children: routesTree });
+  }
+
+  return routesTree;
 };
+
+--- PATH: playground\node_modules\.runtime\history.ts ---
+import { createBrowserHistory } from 'history';
+export const history = createBrowserHistory();
 
 --- PATH: playground\node_modules\.runtime\index.ts ---
+// @ts-nocheck
 export { runners } from './runners';
 export { runners } from './runners';
+export { history } from './history';
 export { useHistory, useLocation, useParams, Link, NavLink } from 'react-router-dom';
+export type { OnRouteChange, RouteChangeArgs } from './features/routes/types';
+
 
 --- PATH: playground\node_modules\.runtime\runners.ts ---
-import * as plugin_0 from './../../features/routes/runtime';
+// @ts-nocheck
+import * as plugin_0 from './features/routes/runtime';
 
-export const runners = {
-  rootContainer: (init, args) => [plugin_0.rootContainer].reduce((m, f) => (typeof f === 'function' ? f(m, args) ?? m : m), init),
+export interface Runners {
+  rootContainer: (initialValue: unknown, args: unknown) => unknown;
+}
+
+export const runners: Runners = {
+  rootContainer: (init: unknown, args: unknown) => [plugin_0.rootContainer].reduce((m, f) => (typeof f === 'function' ? (f as (m: unknown, a: unknown) => unknown)(m, args) ?? m : m), init),
 };
+

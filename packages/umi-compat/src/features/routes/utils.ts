@@ -6,7 +6,7 @@ function winPath(path: string): string {
   return path.replace(/\\/g, '/');
 }
 
-function patchRoute(route: UmiRoute, parentPath: string) {
+function patchRoute(route: UmiRoute, parentPath: string): void {
   if (
     route.path &&
     route.path.charAt(0) !== '/' &&
@@ -43,7 +43,7 @@ function patchRoute(route: UmiRoute, parentPath: string) {
   }
 }
 
-function patchRoutes(routes: UmiRoute[], parentPath = '/') {
+function patchRoutes(routes: UmiRoute[], parentPath = '/'): void {
   for (const route of routes) {
     patchRoute(route, parentPath);
   }

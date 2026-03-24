@@ -20,8 +20,14 @@ export interface HookOverride {
   target: string;
 }
 
+export interface OutputFile {
+  path: string;
+  content: string;
+}
+
 export interface RuntimeIntent {
   config?: RsbuildConfig;
+  files?: OutputFile[];
   defines?: HookDefinition[];
   implements?: Record<string, HookImplementation>;
   stage?: number;
@@ -34,10 +40,12 @@ export interface FeatureResult extends RuntimeIntent {
   id: string;
 }
 
-export interface FeatureParams<V = unknown> {
+export interface FeatureParams<V = unknown, VV = Record<string, unknown>> {
   root: string;
   config: V;
+  allConfig: VV;
   namespace: string;
+  tempDir: string;
   getV: (packageName: string) => number;
   hasFeature: (id: string) => boolean;
 }

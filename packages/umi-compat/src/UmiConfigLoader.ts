@@ -9,10 +9,13 @@ const UMI_CONFIG_FILES = [
   'config/config.js',
 ];
 
+/**
+ * Scans and loads Umi configuration files using jiti.
+ * Supports TS, ESM, and CJS formats with zero caching for reliable HMR.
+ */
 export async function loadUmiConfig(
   root: string,
 ): Promise<Record<string, unknown>> {
-  // createJiti 返回一个具备类型约束的实例
   const jiti = createJiti(import.meta.url, {
     interopDefault: true,
     fsCache: false,
@@ -23,7 +26,7 @@ export async function loadUmiConfig(
     const configPath = path.join(root, file);
     if (existsSync(configPath)) {
       const mod = await jiti.import(configPath);
-      // 对导入的内容进行防御性检查并断言类型
+      // Defensive check for default export or the module object itself
       const config = (mod as { default?: unknown })?.default ?? mod;
       return (config || {}) as Record<string, unknown>;
     }
