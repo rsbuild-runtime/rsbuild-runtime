@@ -9,10 +9,21 @@ export class UmiAppConfigFeature extends Feature {
     super('__umi_app_config__');
   }
 
+  /**
+   * Bridges the user's src/app.ts file with the runtime engine.
+   * Performs static analysis via jiti to detect available hooks.
+   */
   public async apply({ root }: FeatureParams<unknown>): Promise<RuntimeIntent> {
     const bridgeFile = 'features/app.ts';
-    const possibleAppFiles = ['src/app.tsx', 'src/app.ts', 'src/app.jsx', 'src/app.js'];
-    const appFile = possibleAppFiles.find((file) => existsSync(join(root, file)));
+    const possibleAppFiles = [
+      'src/app.tsx',
+      'src/app.ts',
+      'src/app.jsx',
+      'src/app.js',
+    ];
+    const appFile = possibleAppFiles.find((file) =>
+      existsSync(join(root, file)),
+    );
 
     let exportedHooks: string[] = [];
 
@@ -22,28 +33,32 @@ export class UmiAppConfigFeature extends Feature {
         interopDefault: true,
         fsCache: false,
         moduleCache: false,
-        // Ensure we don't execute browser-only code that might break Node
-        alias: {
-          // Optional: mock browser-only imports if needed
-        },
       });
 
       try {
-        const appModule = await jiti.import<Record<string, unknown>>(appAbsPath, {
-          default: true,
-        });
+        // Inspect the app configuration file to see what hooks are provided by the user
+        const appModule = await jiti.import<Record<string, unknown>>(
+          appAbsPath,
+          {
+            default: true,
+          },
+        );
         exportedHooks = Object.keys(appModule);
       } catch (err) {
-        // Fallback: if execution fails (due to browser globals), 
-        // the bridge will still be generated but might be empty.
-        console.warn(`[Runtime] Failed to parse ${appFile} via jiti: ${String(err)}`);
+        // Fallback: if execution fails (e.g. browser globals), bridge will handle gracefully
+        console.warn(
+          `[Runtime] Failed to parse ${appFile} via jiti: ${String(err)}`,
+        );
       }
     }
 
     const hasOnRouteChange = exportedHooks.includes('onRouteChange');
     const hasPatchRoutes = exportedHooks.includes('patchRoutes');
+    const hasAnyHook = hasOnRouteChange || hasPatchRoutes;
 
-    const appImportCode = appFile ? "import * as app from '@/app';" : '';
+    // Only import the app file if it exists and contains at least one relevant hook
+    const appImportCode =
+      appFile && hasAnyHook ? "import * as app from '@/app';" : '';
 
     return {
       defines: [
@@ -61,8 +76,8 @@ export class UmiAppConfigFeature extends Feature {
       files: [
         {
           path: bridgeFile,
-          content: `
-// @ts-nocheck
+          content:
+            `
 ${appImportCode}
 
 export const onRouteChange = (args: unknown): void => {

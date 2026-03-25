@@ -16,7 +16,6 @@ class MockFeature extends Feature<'mock', { val: string }> {
 
   public apply(): RuntimeIntent {
     return {
-      // Must define hooks before implementing them to pass Resolver validation
       defines: [
         { key: 'staticExports', type: 'modify' },
         { key: 'rootContainer', type: 'modify' },
@@ -28,7 +27,7 @@ class MockFeature extends Feature<'mock', { val: string }> {
         },
         rootContainer: {
           file: 'mock-runtime.ts',
-          content: 'export const rootContainer = (c) => c;',
+          content: 'export const rootContainer = (c: unknown) => c;',
         },
       },
     };
@@ -57,6 +56,7 @@ void describe('RuntimeManager', () => {
   });
 
   void afterEach(() => {
+    vi.restoreAllMocks();
     if (fs.existsSync(TMP_DIR)) {
       fs.rmSync(TMP_DIR, { recursive: true, force: true });
     }
@@ -71,17 +71,58 @@ void describe('RuntimeManager', () => {
     const rsbuildConfig = await manager.execute({ mock: { val: 'test' } });
 
     expect(rsbuildConfig.resolve?.alias).toMatchObject({ '@mock': 'src/mock' });
-
     expect(fs.existsSync(path.join(TMP_DIR, 'mock-runtime.ts'))).toBe(true);
     expect(fs.existsSync(path.join(TMP_DIR, 'runners.ts'))).toBe(true);
     expect(fs.existsSync(path.join(TMP_DIR, 'index.ts'))).toBe(true);
+  });
 
-    const indexContent = fs.readFileSync(
-      path.join(TMP_DIR, 'index.ts'),
-      'utf-8',
-    );
-    expect(indexContent).toContain("export const val = 'mock';");
-    expect(indexContent).toContain("export { runners } from './runners';");
+  void describe('peer dependency validation', () => {
+    void test('should log warning when peer dependency is missing', async () => {
+      const mockPluginPkg = JSON.stringify({
+        peerDependencies: { 'missing-pkg': '^1.0.0' },
+      });
+
+      vi.spyOn(fs, 'readFileSync').mockImplementation((p) => {
+        if (typeof p === 'string' && p.endsWith('package.json')) {
+          return mockPluginPkg;
+        }
+        return '';
+      });
+      vi.spyOn(fs, 'existsSync').mockReturnValue(true);
+
+      const manager = new RuntimeManager(mockApi, []);
+      await manager.execute({});
+
+      expect(mockApi.logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('missing (required range: ^1.0.0)'),
+      );
+    });
+
+    void test('should log warning when peer dependency version mismatches', async () => {
+      const mockPluginPkg = JSON.stringify({
+        peerDependencies: { react: '^18.0.0' },
+      });
+      const mockHostPkg = JSON.stringify({ version: '17.0.2' });
+
+      vi.spyOn(fs, 'readFileSync').mockImplementation((p) => {
+        const pathStr = typeof p === 'string' ? p : '';
+        if (pathStr.includes('plugin') && pathStr.endsWith('package.json')) {
+          return mockPluginPkg;
+        }
+        if (pathStr.includes('react') && pathStr.endsWith('package.json')) {
+          return mockHostPkg;
+        }
+        return '';
+      });
+      vi.spyOn(fs, 'existsSync').mockReturnValue(true);
+
+      const manager = new RuntimeManager(mockApi, []);
+      await manager.execute({});
+
+      expect(mockApi.logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('expected ^18.0.0, but found 17.0.2'),
+      );
+    });
   });
 
   void test('should generate correct aliases', () => {

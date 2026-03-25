@@ -3,6 +3,9 @@ import type { ResolvedHook } from './Resolver';
 import type { HookDefinition } from './types';
 
 export class Generator {
+  /**
+   * Generates a single runners.ts containing both execution logic and type interfaces.
+   */
   public static generateRunners(
     resolvedMap: Map<string, ResolvedHook[]>,
     hookDefinitions: HookDefinition[],
@@ -12,6 +15,7 @@ export class Generator {
     const runnerEntries: string[] = [];
     const importMap = new Map<string, string>();
 
+    // 1. Prepare Imports
     let counter = 0;
     resolvedMap.forEach((hooks) => {
       hooks.forEach((hook) => {
@@ -33,16 +37,18 @@ export class Generator {
       });
     });
 
+    // 2. Prepare Runner Interface
     const interfaceEntries = hookDefinitions
       .filter((def) => def.key !== 'staticExports')
       .map((def) => {
         const sig =
           def.type === 'modify'
-            ? '(initialValue: any, args: any) => any'
-            : '(args: any) => void';
+            ? '(initialValue: unknown, args: unknown) => unknown'
+            : '(args: unknown) => void';
         return `  ${def.key}: ${sig};`;
       });
 
+    // 3. Build Runner Logic
     hookDefinitions.forEach((def) => {
       if (def.key === 'staticExports') return;
 
@@ -53,13 +59,13 @@ export class Generator {
 
       const body =
         def.type === 'modify'
-          ? `(init: any, args: any) => [${callChain.join(',')}].reduce((m, f) => (typeof f === 'function' ? (f as (m: any, a: any) => any)(m, args) ?? m : m), init)`
-          : `(args: any) => [${callChain.join(',')}].forEach(f => typeof f === 'function' && (f as (a: any) => void)(args))`;
+          ? `(init: unknown, args: unknown) => [${callChain.join(',')}].reduce((m, f) => (typeof f === 'function' ? (f as (m: unknown, a: unknown) => unknown)(m, args) ?? m : m), init)`
+          : `(args: unknown) => [${callChain.join(',')}].forEach(f => typeof f === 'function' && (f as (a: unknown) => void)(args))`;
 
       runnerEntries.push(`  ${def.key}: ${body},`);
     });
 
-    return `// @ts-nocheck
+    return `
 ${imports.join('\n')}
 
 export interface Runners {
@@ -72,8 +78,11 @@ ${runnerEntries.join('\n')}
 `;
   }
 
+  /**
+   * Generates the main index.ts file aggregating all static exports.
+   */
   public static generateIndex(staticExports: string[]): string {
     const uniqueExports = Array.from(new Set(staticExports));
-    return `// @ts-nocheck\n${uniqueExports.join('\n')}\n`;
+    return `${uniqueExports.join('\n')}\n`;
   }
 }

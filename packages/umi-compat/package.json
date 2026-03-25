@@ -18,23 +18,45 @@
   },
   "dependencies": {
     "@rsbuild-runtime/core": "workspace:*",
-    "rsbuild-plugin-runtime": "workspace:*",
     "jiti": "^2.1.2",
-    "lodash-es": "^4.17.23"
+    "lodash-es": "^4.17.23",
+    "rsbuild-plugin-runtime": "workspace:*"
   },
   "peerDependencies": {
     "@rsbuild/core": ">=1.0.0",
-    "history": "^4.10.1",
-    "@types/history": "^4.7.11"
+    "react": ">=16.8.0",
+    "react-dom": ">=16.8.0",
+    "history": "4.x",
+    "react-router": "5.x",
+    "react-router-dom": "5.x"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": false
+    },
+    "react-dom": {
+      "optional": false
+    },
+    "history": {
+      "optional": false
+    },
+    "react-router": {
+      "optional": false
+    },
+    "react-router-dom": {
+      "optional": false
+    }
   },
   "devDependencies": {
-    "@types/history": "^4.7.11",
     "@rsbuild/core": "^1.7.3",
     "@rslib/core": "^0.20.0",
     "@rstest/adapter-rslib": "^0.2.0",
     "@rstest/core": "^0.8.5",
+    "@types/history": "^4.7.11",
     "@types/lodash-es": "^4.17.12",
     "@types/node": "^24.10.13",
+    "@types/react": "^17.0.0",
+    "@types/react-dom": "^17.0.0",
     "@umijs/types": "^3.5.43",
     "typescript": "^5.9.3"
   }

@@ -34,6 +34,11 @@ export interface RuntimeIntent {
   disableFeatures?: string[];
   overrides?: Record<string, HookOverride>;
   staticExports?: string;
+  /**
+   * Declarative runtime dependencies required by this feature.
+   * Format: { "package-name": "semver-range" }
+   */
+  runtimeDeps?: Record<string, string>;
 }
 
 export interface FeatureResult extends RuntimeIntent {
@@ -48,4 +53,12 @@ export interface FeatureParams<V = unknown, VV = Record<string, unknown>> {
   tempDir: string;
   getV: (packageName: string) => number;
   hasFeature: (id: string) => boolean;
+  /**
+   * Extracts specific version ranges from a given package.json file.
+   * Useful for syncing runtime requirements with the feature's own package.json.
+   */
+  getRequirements: (
+    depNames: string[],
+    packageJsonPath: string,
+  ) => Record<string, string>;
 }

@@ -10,7 +10,7 @@ export class UmiEntryFeature extends Feature {
   public apply({ getV, tempDir }: FeatureParams<unknown>): RuntimeIntent {
     const isReact18 = getV('react-dom') >= 18;
 
-    const content = `// @ts-nocheck
+    const content = `
 import React from 'react';
 import ${isReact18 ? 'ReactDOM from "react-dom/client"' : 'ReactDOM from "react-dom"'};
 import { runners } from './runners';

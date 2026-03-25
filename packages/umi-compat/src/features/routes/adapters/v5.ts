@@ -1,12 +1,10 @@
 import type { RouteAdapter, UmiRoute } from '../types';
 
 export const v5Adapter: RouteAdapter = {
-  /**
-   * Generates @@/routes.ts
-   * Strategy: Default to 'lazy import'. Only '/' and its redirect target use 'require'.
-   */
   genRoutesData: (routes: UmiRoute[]) => {
-    const rootRedirect = routes.find((r) => r.path === '/' && r.redirect)?.redirect;
+    const rootRedirect = routes.find(
+      (r) => r.path === '/' && r.redirect,
+    )?.redirect;
     const syncPaths = new Set(['/', rootRedirect].filter(Boolean) as string[]);
 
     const stringifyRoutes = (list: UmiRoute[]): string => {
@@ -16,23 +14,21 @@ export const v5Adapter: RouteAdapter = {
         const props = Object.entries(route)
           .map(([key, value]) => {
             if (key === 'routes' && Array.isArray(value)) {
-              // Fix ESLint: Explicitly cast to UmiRoute[] to avoid unsafe-argument
               return `routes: ${stringifyRoutes(value as UmiRoute[])}`;
             }
-
             if (key === 'component' && typeof value === 'string') {
               return isSync
                 ? `component: require('${value}').default`
                 : `component: lazy(() => import('${value}'))`;
             }
-
             if (key === 'wrappers' && Array.isArray(value)) {
-              const wrappers = value.map((w: string) => 
-                isSync ? `require('${w}').default` : `lazy(() => import('${w}'))`
+              const wrappers = value.map((w: string) =>
+                isSync
+                  ? `require('${w}').default`
+                  : `lazy(() => import('${w}'))`,
               );
               return `wrappers: [${wrappers.join(', ')}]`;
             }
-
             return `${key}: ${JSON.stringify(value)}`;
           })
           .join(',\n      ');
@@ -41,28 +37,23 @@ export const v5Adapter: RouteAdapter = {
       return `[\n    ${entries.join(',\n    ')}\n  ]`;
     };
 
-    return `// @ts-nocheck
+    return `
 import { lazy } from 'react';
-
-export default ${stringifyRoutes(routes)};
-`;
+export default ${stringifyRoutes(routes)};\n`;
   },
 
-  /**
-   * Generates @@/renderRoutes.tsx
-   * Injects the custom loading component into Suspense fallback.
-   */
   genRenderComponent: (loadingPath?: string) => {
-    const loadingImport = loadingPath 
-      ? `import Loading from '${loadingPath}';` 
+    const loadingImport = loadingPath
+      ? `import Loading from '${loadingPath}';`
       : 'const Loading = () => null;';
 
-    return `// @ts-nocheck
-import React, { Suspense } from 'react';
+    return `
+import React, { Suspense, createElement } from 'react';
 import { Switch, Route, Redirect } from 'react-router-dom';
+import { __RouterContext as RouterContext } from 'react-router';
 ${loadingImport}
 
-export const RenderRoutes = ({ routes }: { routes: unknown[] }) => {
+export const RenderRoutes = ({ routes, rootRoutes }: { routes: unknown[], rootRoutes: unknown[] }) => {
   if (!routes || !Array.isArray(routes)) return null;
 
   return (
@@ -87,15 +78,39 @@ export const RenderRoutes = ({ routes }: { routes: unknown[] }) => {
               path={route.path}
               exact={!!route.exact}
               render={(props) => {
-                const RawComponent = route.component || ((p: Record<string, unknown>) => <React.Fragment>{p.children}</React.Fragment>);
-                const wrappers = route.wrappers || [];
-                
-                let content = <RenderRoutes routes={route.routes} />;
-                content = <RawComponent {...props}>{content}</RawComponent>;
+                const childRoutes = <RenderRoutes routes={route.routes} rootRoutes={rootRoutes} />;
 
-                return wrappers.reduceRight((acc: any, Wrapper: any) => {
-                  return <Wrapper {...props}>{acc}</Wrapper>;
-                }, content);
+                const match = (props as Record<string, unknown>).computedMatch ?? props.match;
+                const contextValue = { ...props, match };
+
+                const newProps = {
+                  ...props,
+                  match,
+                  route,
+                  routes: rootRoutes,
+                };
+
+                const RawComponent = route.component;
+                const wrappers = route.wrappers || [];
+
+                let content: React.ReactNode;
+                if (RawComponent) {
+                  content = <RawComponent {...newProps}>{childRoutes}</RawComponent>;
+                } else {
+                  content = childRoutes;
+                }
+
+                const wrappedContent = wrappers.length > 0
+                  ? wrappers.reduceRight((acc: React.ReactNode, Wrapper: React.ComponentType<unknown>) => {
+                      return createElement(Wrapper, newProps, acc);
+                    }, content)
+                  : content;
+
+                return (
+                  <RouterContext.Provider value={contextValue}>
+                    {wrappedContent}
+                  </RouterContext.Provider>
+                );
               }}
             />
           );
@@ -103,11 +118,10 @@ export const RenderRoutes = ({ routes }: { routes: unknown[] }) => {
       </Switch>
     </Suspense>
   );
-};
-`;
+};\n`;
   },
 
-  genRuntimeCode: () => `// @ts-nocheck
+  genRuntimeCode: () => `
 import React from 'react';
 import { Router } from 'react-router-dom';
 import { history } from '../history';
@@ -115,15 +129,7 @@ import { runners } from '../runners';
 import routesData from '../routes';
 import { RenderRoutes } from '../renderRoutes';
 
-export const rootContainer = (container: React.ReactElement | null) => {
-  runners.patchRoutes({ routes: routesData });
-
-  const routesTree = (
-    <Router history={history}>
-      <RenderRoutes routes={routesData} />
-    </Router>
-  );
-
+const RouteRuntimeWrapper = ({ children }: { children: React.ReactNode }) => {
   React.useEffect(() => {
     const handler = (location: unknown, action: string) => {
       runners.onRouteChange({ location, action, routes: routesData });
@@ -133,13 +139,16 @@ export const rootContainer = (container: React.ReactElement | null) => {
     return unlisten;
   }, []);
 
-  if (container) {
-    return React.cloneElement(container, { children: routesTree });
-  }
-
-  return routesTree;
+  return <Router history={history}>{children}</Router>;
 };
-`,
 
-  genExports: () => "export { useHistory, useLocation, useParams, Link, NavLink } from 'react-router-dom';\n",
+export const rootContainer = (container: React.ReactElement | null) => {
+  runners.patchRoutes({ routes: routesData });
+  const content = <RenderRoutes routes={routesData} rootRoutes={routesData} />;
+  const wrappedContent = <RouteRuntimeWrapper>{content}</RouteRuntimeWrapper>;
+  return container ? React.cloneElement(container, { children: wrappedContent }) : wrappedContent;
+};\n`,
+
+  genExports: () =>
+    "export { useHistory, useLocation, useParams, Link, NavLink } from 'react-router-dom';\n",
 };

@@ -28,14 +28,14 @@
     "react": "17.x",
     "react-dom": "17.x",
     "react-router-dom": "^5.3.4",
-    "umi": "^3.5.43",
-    "rsbuild-plugin-runtime": "workspace:*"
+    "rsbuild-plugin-runtime": "workspace:*",
+    "rsbuild-plugin-umi": "workspace:*",
+    "umi": "^3.5.43"
   },
   "devDependencies": {
     "@repo/scripts": "workspace:*",
     "@rsbuild/core": "^1.7.3",
     "@rsbuild/plugin-less": "^1.6.0",
-    "rsbuild-plugin-umi": "workspace:*",
     "@rsbuild/plugin-react": "^1.4.5",
     "@types/history": "^4.7.11",
     "@types/lodash-es": "^4.17.12",

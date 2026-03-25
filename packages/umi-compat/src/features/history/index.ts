@@ -1,3 +1,4 @@
+import { join } from 'node:path';
 import { Feature } from '@rsbuild-runtime/core';
 import type { RuntimeIntent, FeatureParams } from '@rsbuild-runtime/core';
 import type {
@@ -24,10 +25,16 @@ export class UmiHistoryFeature extends Feature<'history', HistoryConfig> {
   }
 
   public apply(params: FeatureParams<HistoryConfig>): RuntimeIntent {
-    const { config, allConfig } = params;
+    const { config, allConfig, getRequirements } = params;
 
+    // 1. Audit runtime dependencies autonomously
+    const pkgPath = join(import.meta.dirname, '../../../package.json');
+    const runtimeDeps = getRequirements(['history'], pkgPath);
+
+    // 2. Normalize configuration
     const normalizedConfig =
       typeof config === 'string' ? { type: config } : config;
+
     const type = normalizedConfig?.type ?? 'browser';
 
     const CREATORS = {
@@ -38,18 +45,21 @@ export class UmiHistoryFeature extends Feature<'history', HistoryConfig> {
 
     const creator = CREATORS[type];
 
-    // Ensure options is always a valid object to avoid ts(2769)
+    // 3. Extract and normalize options
     const rawOptions =
       normalizedConfig &&
       typeof normalizedConfig === 'object' &&
-      'options' in normalizedConfig
+      'options' in normalizedConfig &&
+      normalizedConfig.options
         ? normalizedConfig.options
         : {};
 
-    const options: Record<string, unknown> = { ...rawOptions };
+    const options: Record<string, unknown> = {
+      ...(rawOptions as Record<string, unknown>),
+    };
 
     // Umi v3 Integration: inherit 'base' as 'basename' if not explicitly provided
-    if (!options.basename && typeof allConfig?.base === 'string') {
+    if (!options.basename && typeof allConfig.base === 'string') {
       options.basename = allConfig.base;
     }
 
@@ -62,6 +72,7 @@ export const history = ${creator}(${optionsStr});
 `.trim();
 
     return {
+      runtimeDeps, // Submit requirement to the engine for validation
       files: [{ path: 'history.ts', content }],
       implements: {
         staticExports: {

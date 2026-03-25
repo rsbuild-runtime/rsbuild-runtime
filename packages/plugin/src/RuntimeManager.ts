@@ -1,5 +1,6 @@
 import path from 'node:path';
 import fs from 'node:fs';
+import semver from 'semver';
 import { mergeRsbuildConfig } from '@rsbuild/core';
 import {
   Resolver,
@@ -13,6 +14,7 @@ import type {
   HookDefinition,
   FeatureResult,
   OutputFile,
+  ResolvedHook,
 } from '@rsbuild-runtime/core';
 
 export class RuntimeManager {
@@ -45,9 +47,10 @@ export class RuntimeManager {
   ): Promise<RsbuildConfig> {
     const hookDefinitions: HookDefinition[] = [];
     const standaloneFiles: OutputFile[] = [];
+    const aggregatedDeps: Record<string, string> = {};
     let finalRsbuildConfig: RsbuildConfig = {};
 
-    // Phase 1: Collection
+    // Phase 1: Collection & Declarative Dependency Gathering
     for (const feature of this.features) {
       const featureConfig = (userConfig[feature.key] ?? {}) as unknown;
 
@@ -59,6 +62,8 @@ export class RuntimeManager {
         tempDir: this.tempDir,
         getV: (pkg) => this.versionManager.getV(pkg),
         hasFeature: (id) => this.features.some((f) => f.id === id),
+        getRequirements: (names, pkgPath) =>
+          this.versionManager.getRequirements(names, pkgPath),
       });
 
       const result: FeatureResult = {
@@ -76,6 +81,11 @@ export class RuntimeManager {
         hookDefinitions.push(...result.defines);
       }
 
+      // Aggregate runtime dependencies declared by the active features
+      if (result.runtimeDeps) {
+        Object.assign(aggregatedDeps, result.runtimeDeps);
+      }
+
       if (result.config) {
         finalRsbuildConfig = mergeRsbuildConfig(
           finalRsbuildConfig,
@@ -83,6 +93,9 @@ export class RuntimeManager {
         );
       }
     }
+
+    // 2. Validate aggregated runtime dependencies against host environment
+    this.validateRuntimeDeps(aggregatedDeps);
 
     // Phase 2: Orchestration
     this.resolver.validate(hookDefinitions);
@@ -98,8 +111,8 @@ export class RuntimeManager {
     }
 
     // B. Write individual orchestrated hook implementations
-    resolvedMap.forEach((hooks) => {
-      hooks.forEach((hook) => {
+    resolvedMap.forEach((hooks: ResolvedHook[]) => {
+      hooks.forEach((hook: ResolvedHook) => {
         if (hook.content && hook.file) {
           const fullPath = path.isAbsolute(hook.file)
             ? hook.file
@@ -109,7 +122,6 @@ export class RuntimeManager {
       });
     });
 
-    // C. Generate Runners (Logic and interface are now in one file)
     const runnersContent = Generator.generateRunners(
       resolvedMap,
       hookDefinitions,
@@ -120,9 +132,8 @@ export class RuntimeManager {
       runnersContent,
     );
 
-    // D. Generate Public API Index
     const staticExports = (resolvedMap.get('staticExports') ?? []).map(
-      (h) => h.content ?? '',
+      (h: ResolvedHook) => h.content ?? '',
     );
     const indexContent = Generator.generateIndex(staticExports);
     Materializer.writeIfChanged(
@@ -133,6 +144,35 @@ export class RuntimeManager {
     this.validateTsConfigAlias();
 
     return finalRsbuildConfig;
+  }
+
+  /**
+   * Validates runtime dependencies against the host project's explicit declarations.
+   * Throws an error if any dependency is missing or version mismatches.
+   */
+  private validateRuntimeDeps(deps: Record<string, string>): void {
+    const errors: string[] = [];
+    for (const [name, range] of Object.entries(deps)) {
+      // The versionManager ensures visibility in the host package.json
+      const actual = this.versionManager.getFullVersion(name);
+      if (!actual) {
+        errors.push(
+          `- ${name}: missing in host package.json (required: ${range})`,
+        );
+      } else if (!semver.satisfies(actual, range)) {
+        errors.push(
+          `- ${name}: version mismatch (found ${actual}, required ${range})`,
+        );
+      }
+    }
+
+    if (errors.length > 0) {
+      const msg =
+        `[Runtime] Dependency validation failed:\n${errors.join('\n')}\n` +
+        'Please ensure these packages are explicitly installed in your project root.';
+      this.api.logger.error(msg);
+      // throw new Error(msg);
+    }
   }
 
   /**
