@@ -16,39 +16,52 @@ export interface AdapterOptions {
 /**
  * Adapter
  * The abstract base class for all feature-specific adapters.
- * Integrates CodeGenerator and provides common utility methods.
+ *
+ * There is no longer a shared `this.gen` instance. Each sub-class method
+ * calls `this.createGen()` to get a fresh, independent CodeGenerator,
+ * runs its generation logic, and returns the resulting string directly.
+ *
+ * This means:
+ * - No shared mutable state between methods
+ * - No section names or magic strings
+ * - Return value IS the output — straightforward and type-safe
  */
 export abstract class Adapter {
-  protected readonly gen: CodeGenerator;
   protected readonly namespace: string;
   protected readonly tempDir: string;
   protected readonly root: string;
 
   constructor(options: AdapterOptions) {
-    this.gen = new CodeGenerator();
     this.namespace = options.namespace;
     this.tempDir = options.tempDir;
     this.root = options.root;
   }
 
   /**
-   * Retrieves the finalized code content from the generator.
+   * Creates a fresh CodeGenerator instance.
+   * Call once at the top of each gen* method; use it locally; return getContent().
+   *
+   * Example:
+   *   public genRoutesData(routes: UmiRoute[]): string {
+   *     const gen = this.createGen();
+   *     gen.addImport("import { lazy } from 'react';");
+   *     gen.template`export default ${stringifyRoutes(routes)};`;
+   *     return gen.getContent();
+   *   }
    */
-  public getOutput(): string {
-    return this.gen.getContent();
+  protected createGen(): CodeGenerator {
+    return new CodeGenerator();
   }
 
   /**
    * Ensures paths are POSIX-compliant for use in generated code.
-   * Useful for converting absolute system paths into valid import strings.
    */
   protected formatPath(p: string): string {
     return p.replace(/\\/g, '/');
   }
 
   /**
-   * Abstract method to be implemented by sub-classes to define
-   * their specific code generation logic.
+   * Abstract method to be implemented by sub-classes.
    */
   public abstract execute(...args: unknown[]): void;
 }

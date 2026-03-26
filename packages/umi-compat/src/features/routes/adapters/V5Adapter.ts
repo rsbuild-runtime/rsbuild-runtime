@@ -5,14 +5,16 @@ export class V5Adapter extends Adapter {
   /**
    * Generates route configuration data with sync/lazy loading logic.
    */
-  public genRoutesData(routes: UmiRoute[]): void {
+  public genRoutesData(routes: UmiRoute[]): string {
+    const gen = this.createGen();
+
     const rootRedirect = routes.find(
       (r) => r.path === '/' && r.redirect,
     )?.redirect;
 
     const syncPaths = new Set(['/', rootRedirect].filter(Boolean) as string[]);
 
-    this.gen.addImport("import { lazy } from 'react';");
+    gen.addImport("import { lazy } from 'react';");
 
     const stringifyRoutes = (list: UmiRoute[]): string => {
       const entries = list.map((route) => {
@@ -24,7 +26,6 @@ export class V5Adapter extends Adapter {
           }
 
           if (key === 'component' && typeof value === 'string') {
-            // Path normalization is handled automatically by this.gen.template
             return isSync
               ? `component: require('${value}').default`
               : `component: lazy(() => import('${value}'))`;
@@ -46,33 +47,34 @@ export class V5Adapter extends Adapter {
       return `[\n${entries.join(',\n')}\n]`;
     };
 
-    // Use template literal for the main export
-    void this.gen.template`
+    void gen.template`
       export default ${stringifyRoutes(routes)};
     `;
+
+    return gen.getContent();
   }
 
   /**
-   * Generates the RenderRoutes component using declarative templates.
+   * Generates the RenderRoutes component.
    */
-  public genRenderComponent(loadingPath?: string): void {
-    this.gen.addImport(
-      "import React, { Suspense, createElement } from 'react';",
-    );
-    this.gen.addImport(
+  public genRenderComponent(loadingPath?: string): string {
+    const gen = this.createGen();
+
+    gen.addImport("import React, { Suspense, createElement } from 'react';");
+    gen.addImport(
       "import { Switch, Route, Redirect } from 'react-router-dom';",
     );
-    this.gen.addImport(
+    gen.addImport(
       "import { __RouterContext as RouterContext } from 'react-router';",
     );
 
     if (loadingPath) {
-      this.gen.addImport(`import Loading from '${loadingPath}';`);
+      gen.addImport(`import Loading from '${loadingPath}';`);
     } else {
-      void this.gen.template`const Loading = () => null;`;
+      void gen.template`const Loading = () => null;`;
     }
 
-    void this.gen.template`
+    void gen.template`
       export const RenderRoutes = ({ routes, rootRoutes }: { routes: unknown[], rootRoutes: unknown[] }) => {
         if (!routes || !Array.isArray(routes)) return null;
 
@@ -138,20 +140,24 @@ export class V5Adapter extends Adapter {
         );
       };
     `;
+
+    return gen.getContent();
   }
 
   /**
    * Generates the runtime entry point code.
    */
-  public genRuntimeCode(): void {
-    this.gen.addImport("import React from 'react';");
-    this.gen.addImport("import { Router } from 'react-router-dom';");
-    this.gen.addImport("import { history } from '../history';");
-    this.gen.addImport("import { runners } from '../runners';");
-    this.gen.addImport("import routesData from '../routes';");
-    this.gen.addImport("import { RenderRoutes } from '../renderRoutes';");
+  public genRuntimeCode(): string {
+    const gen = this.createGen();
 
-    void this.gen.template`
+    gen.addImport("import React from 'react';");
+    gen.addImport("import { Router } from 'react-router-dom';");
+    gen.addImport("import { history } from '../history';");
+    gen.addImport("import { runners } from '../runners';");
+    gen.addImport("import routesData from '../routes';");
+    gen.addImport("import { RenderRoutes } from '../renderRoutes';");
+
+    void gen.template`
       const RouteRuntimeWrapper = ({ children }: { children: React.ReactNode }) => {
         React.useEffect(() => {
           const handler = (location: unknown, action: string) => {
@@ -172,24 +178,24 @@ export class V5Adapter extends Adapter {
         return container ? React.cloneElement(container, { children: wrappedContent }) : wrappedContent;
       };
     `;
+
+    return gen.getContent();
   }
 
   /**
    * Generates standard re-exports for the feature.
    */
-  public genExports(): void {
-    void this.gen.template`
+  public genExports(): string {
+    const gen = this.createGen();
+
+    void gen.template`
       export { useHistory, useLocation, useParams, Link, NavLink } from 'react-router-dom';
     `;
+
+    return gen.getContent();
   }
 
-  /**
-   * Implementation of the required abstract method from Base Adapter.
-   * In this case, we use specific methods instead of a single execute,
-   * but we can wrap them if needed.
-   */
   public execute(): void {
-    // Not strictly needed if the Feature calls sub-methods directly,
-    // but good for architectural completeness.
+    // Orchestration hook — call specific gen* methods here if needed.
   }
 }

@@ -42,15 +42,8 @@ export class RoutesFeature extends Feature<'routes', UmiRoute[]> {
       pkgPath,
     );
 
-    /**
-     * Helper to get generated content from a fresh adapter instance.
-     * This ensures each file has its own independent CodeGenerator buffer.
-     */
-    const getFileContent = (executor: (adapter: V5Adapter) => void): string => {
-      const adapter = new AdapterClass({ namespace, tempDir, root });
-      executor(adapter);
-      return adapter.getOutput();
-    };
+    // 4. Generate — each method is independent, returns its output directly.
+    const adapter = new AdapterClass({ namespace, tempDir, root });
 
     return {
       stage: 100,
@@ -58,22 +51,22 @@ export class RoutesFeature extends Feature<'routes', UmiRoute[]> {
       files: [
         {
           path: 'routes.ts',
-          content: getFileContent((a) => a.genRoutesData(normalizedRoutes)),
+          content: adapter.genRoutesData(normalizedRoutes),
         },
         {
           path: 'renderRoutes.tsx',
-          content: getFileContent((a) => a.genRenderComponent(loadingPath)),
+          content: adapter.genRenderComponent(loadingPath),
         },
       ],
 
       implements: {
         rootContainer: {
           file: 'features/routes.tsx',
-          content: getFileContent((a) => a.genRuntimeCode()),
+          content: adapter.genRuntimeCode(),
         },
         staticExports: {
           content:
-            getFileContent((a) => a.genExports()).trim() +
+            adapter.genExports().trim() +
             '\n' +
             "export type { OnRouteChange, RouteChangeArgs, UmiRoute } from './features/routes/types';\n",
         },

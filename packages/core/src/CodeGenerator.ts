@@ -1,10 +1,14 @@
 /**
  * CodeGenerator
- * A utility to manage declarative code generation with automatic:
+ * A stateless-per-use utility for code generation.
+ * Each instance is meant to be created, used, and discarded within
+ * a single generation method — no shared state, no sections needed.
+ *
+ * Provides automatic:
  * - Import deduplication
  * - POSIX path normalization
  * - Indentation cleanup
- * - Smart object stringification
+ * - Smart value stringification
  */
 export class CodeGenerator {
   private imports = new Set<string>();
@@ -12,13 +16,12 @@ export class CodeGenerator {
 
   /**
    * Add an import statement to the top of the file.
-   * Duplicate statements will be automatically filtered.
+   * Duplicate statements are automatically filtered.
    */
   public addImport(statement: string): void {
     const trimmed = statement.trim();
-    if (trimmed) {
-      this.imports.add(trimmed.endsWith(';') ? trimmed : `${trimmed};`);
-    }
+    if (!trimmed) return;
+    this.imports.add(trimmed.endsWith(';') ? trimmed : `${trimmed};`);
   }
 
   /**
@@ -26,49 +29,53 @@ export class CodeGenerator {
    * Usage: gen.template`const a = ${value};`
    */
   public template(strings: TemplateStringsArray, ...values: unknown[]): void {
-    // 1. Join strings and values with safe narrowing
-    let raw = strings.reduce((acc, str, i) => {
-      const value = values[i];
-      let stringifiedValue = '';
+    const raw = strings.reduce(
+      (acc, str, i) => acc + str + this.stringify(values[i]),
+      '',
+    );
+    this.fragments.push(this.normalizeAndTrim(raw));
+  }
 
-      if (value !== undefined && value !== null) {
-        // Using switch (typeof) is the most effective way to satisfy ESLint
-        // as it provides perfect Type Narrowing for each branch.
-        switch (typeof value) {
-          case 'object':
-            try {
-              stringifiedValue = JSON.stringify(value, null, 2);
-            } catch {
-              stringifiedValue = '/* [Complex Object] */';
-            }
-            break;
-          case 'string':
-            stringifiedValue = value;
-            break;
-          case 'number':
-          case 'boolean':
-          case 'bigint':
-          case 'symbol':
-            // In these branches, value is narrowed to a primitive type.
-            // Calling .toString() is compliant and safe here.
-            stringifiedValue = value.toString();
-            break;
-          case 'function':
-            stringifiedValue = '/* [Function] */';
-            break;
-          default:
-            stringifiedValue = '';
+  /**
+   * Collects all imports and fragments into a single string.
+   */
+  public getContent(): string {
+    const sortedImports = Array.from(this.imports).sort();
+    const importBlock =
+      sortedImports.length > 0 ? sortedImports.join('\n') + '\n\n' : '';
+
+    return `${importBlock}${this.fragments.join('\n\n')}`.trim() + '\n';
+  }
+
+  // ── Private helpers ────────────────────────────────────────────────────────
+
+  private stringify(value: unknown): string {
+    if (value === undefined || value === null) return '';
+
+    switch (typeof value) {
+      case 'object':
+        try {
+          return JSON.stringify(value, null, 2);
+        } catch {
+          return '/* [Complex Object] */';
         }
-      }
+      case 'string':
+        return value;
+      case 'function':
+        return '/* [Function] */';
+      case 'number':
+      case 'boolean':
+      case 'bigint':
+      case 'symbol':
+        return value.toString();
+      default:
+        return '';
+    }
+  }
 
-      return acc + str + stringifiedValue;
-    }, '');
-
-    // 2. Normalize Windows paths to POSIX
+  private normalizeAndTrim(raw: string): string {
     raw = raw.replace(/\\/g, '/');
 
-    // 3. Simple Indentation Cleanup:
-    // Removes the common leading indentation from multi-line template literals.
     const lines = raw.split('\n');
     if (lines.length > 1) {
       const minIndent = lines
@@ -86,17 +93,6 @@ export class CodeGenerator {
       }
     }
 
-    this.fragments.push(raw.trim());
-  }
-
-  /**
-   * Collects all fragments and imports into a single string.
-   */
-  public getContent(): string {
-    const sortedImports = Array.from(this.imports).sort();
-    const importBlock =
-      sortedImports.length > 0 ? sortedImports.join('\n') + '\n\n' : '';
-
-    return `${importBlock}${this.fragments.join('\n\n')}`.trim() + '\n';
+    return raw.trim();
   }
 }
