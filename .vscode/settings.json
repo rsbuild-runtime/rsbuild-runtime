@@ -1,0 +1,56 @@
+{
+  // --- 基础格式化设置 ---
+  // 指定 Prettier 为默认格式化器
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  // 开启保存时自动格式化
+  "editor.formatOnSave": true,
+
+  // --- ESLint 自动修复设置 ---
+  "editor.codeActionsOnSave": {
+    // 保存时自动执行 ESLint 的 --fix 操作
+    "source.fixAll.eslint": "explicit"
+  },
+  "stylelint.validate": ["css", "less"],
+  // --- 特定文件类型的细化配置 ---
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[less]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[css]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "files.insertFinalNewline": true,
+  // --- 搜索与显示优化 ---
+  // 排除不需要搜索的目录，提高性能
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/.rsbuild": true
+  },
+  // 确保 ESLint 插件在处理 pnpm 项目时能正常工作
+  "eslint.workingDirectories": [{ "mode": "auto" }],
+  "files.eol": "\n",
+  "editor.tabSize": 2,
+  "editor.detectIndentation": false,
+  "editor.insertSpaces": true,
+  "files.encoding": "utf8",
+  "files.trimTrailingWhitespace": true,
+  "[markdown]": {
+    "files.trimTrailingWhitespace": false
+  },
+  "[makefile]": {
+    "editor.insertSpaces": false,
+    "editor.tabSize": 4
+  }
+}
