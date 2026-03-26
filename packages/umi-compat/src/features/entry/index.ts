@@ -2,7 +2,7 @@ import path from 'node:path';
 import { Feature } from '@rsbuild-runtime/core';
 import type { FeatureParams, RuntimeIntent } from '@rsbuild-runtime/core';
 
-export class UmiEntryFeature extends Feature {
+export class EntryFeature extends Feature {
   constructor() {
     super('__umi_entry__');
   }

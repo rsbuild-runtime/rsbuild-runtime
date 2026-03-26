@@ -1,6 +1,5 @@
 import path from 'node:path';
 import fs from 'node:fs';
-import semver from 'semver';
 import { mergeRsbuildConfig } from '@rsbuild/core';
 import {
   Resolver,
@@ -36,12 +35,6 @@ export class RuntimeManager {
     this.versionManager = new VersionManager(this.root);
   }
 
-  /**
-   * Orchestrates the runtime generation pipeline.
-   * 1. Collects intents from features.
-   * 2. Resolves conflicts via Resolver.
-   * 3. Materializes physical files and internal modules.
-   */
   public async execute(
     userConfig: Record<string, unknown>,
   ): Promise<RsbuildConfig> {
@@ -50,7 +43,6 @@ export class RuntimeManager {
     const aggregatedDeps: Record<string, string> = {};
     let finalRsbuildConfig: RsbuildConfig = {};
 
-    // Phase 1: Collection & Declarative Dependency Gathering
     for (const feature of this.features) {
       const featureConfig = (userConfig[feature.key] ?? {}) as unknown;
 
@@ -66,26 +58,12 @@ export class RuntimeManager {
           this.versionManager.getRequirements(names, pkgPath),
       });
 
-      const result: FeatureResult = {
-        ...intent,
-        id: feature.id,
-      };
-
+      const result: FeatureResult = { ...intent, id: feature.id };
       this.resolver.addIntent(feature.id, result);
 
-      if (intent.files) {
-        standaloneFiles.push(...intent.files);
-      }
-
-      if (result.defines) {
-        hookDefinitions.push(...result.defines);
-      }
-
-      // Aggregate runtime dependencies declared by the active features
-      if (result.runtimeDeps) {
-        Object.assign(aggregatedDeps, result.runtimeDeps);
-      }
-
+      if (intent.files) standaloneFiles.push(...intent.files);
+      if (result.defines) hookDefinitions.push(...result.defines);
+      if (result.runtimeDeps) Object.assign(aggregatedDeps, result.runtimeDeps);
       if (result.config) {
         finalRsbuildConfig = mergeRsbuildConfig(
           finalRsbuildConfig,
@@ -94,15 +72,11 @@ export class RuntimeManager {
       }
     }
 
-    // 2. Validate aggregated runtime dependencies against host environment
-    this.validateRuntimeDeps(aggregatedDeps);
+    await this.validateRuntimeDeps(aggregatedDeps);
 
-    // Phase 2: Orchestration
     this.resolver.validate(hookDefinitions);
     const resolvedMap = this.resolver.resolve();
 
-    // Phase 3: Materialization
-    // A. Write standalone files defined by features
     for (const file of standaloneFiles) {
       const fullPath = path.isAbsolute(file.path)
         ? file.path
@@ -110,7 +84,6 @@ export class RuntimeManager {
       Materializer.writeIfChanged(fullPath, file.content);
     }
 
-    // B. Write individual orchestrated hook implementations
     resolvedMap.forEach((hooks: ResolvedHook[]) => {
       hooks.forEach((hook: ResolvedHook) => {
         if (hook.content && hook.file) {
@@ -122,62 +95,70 @@ export class RuntimeManager {
       });
     });
 
-    const runnersContent = Generator.generateRunners(
-      resolvedMap,
-      hookDefinitions,
-      this.tempDir,
-    );
     Materializer.writeIfChanged(
       path.join(this.tempDir, 'runners.ts'),
-      runnersContent,
+      Generator.generateRunners(resolvedMap, hookDefinitions, this.tempDir),
     );
 
     const staticExports = (resolvedMap.get('staticExports') ?? []).map(
       (h: ResolvedHook) => h.content ?? '',
     );
-    const indexContent = Generator.generateIndex(staticExports);
     Materializer.writeIfChanged(
       path.join(this.tempDir, 'index.ts'),
-      indexContent,
+      Generator.generateIndex(staticExports),
     );
 
     this.validateTsConfigAlias();
-
     return finalRsbuildConfig;
   }
 
-  /**
-   * Validates runtime dependencies against the host project's explicit declarations.
-   * Throws an error if any dependency is missing or version mismatches.
-   */
-  private validateRuntimeDeps(deps: Record<string, string>): void {
-    const errors: string[] = [];
-    for (const [name, range] of Object.entries(deps)) {
-      // The versionManager ensures visibility in the host package.json
-      const actual = this.versionManager.getFullVersion(name);
-      if (!actual) {
-        errors.push(
-          `- ${name}: missing in host package.json (required: ${range})`,
-        );
-      } else if (!semver.satisfies(actual, range)) {
-        errors.push(
-          `- ${name}: version mismatch (found ${actual}, required ${range})`,
-        );
-      }
-    }
+  private async validateRuntimeDeps(
+    deps: Record<string, string>,
+  ): Promise<void> {
+    if (Object.keys(deps).length === 0) return;
 
-    if (errors.length > 0) {
-      const msg =
-        `[Runtime] Dependency validation failed:\n${errors.join('\n')}\n` +
-        'Please ensure these packages are explicitly installed in your project root.';
-      this.api.logger.error(msg);
-      // throw new Error(msg);
-    }
+    // Stage 1: Sync Fast Check
+    const syncResults = this.versionManager.checkDependencies({
+      manifest: deps,
+    });
+    if (syncResults.every((r) => r.isSatisfied)) return;
+
+    // Stage 2: Async Deep Audit
+    const asyncResults = await this.versionManager.checkDependencies({
+      manifest: deps,
+      fetchRemote: true,
+    });
+
+    const RED = '\x1b[31m';
+    const GREEN = '\x1b[32m';
+    const CYAN = '\x1b[36m';
+    const BOLD = '\x1b[1m';
+    const RESET = '\x1b[0m';
+
+    const errorLogs = asyncResults
+      .filter((r) => !r.isSatisfied)
+      .map((r) => {
+        const actualMsg = r.actual ? `(found ${r.actual})` : '(not installed)';
+        return `   ${RED}✖${RESET} ${r.name}: expected ${CYAN}${r.expected}${RESET} ${actualMsg}`;
+      });
+
+    const { name: pkgManager, command: pkgCmd } =
+      this.versionManager.getPackageManager();
+    const suggestions = asyncResults
+      .filter((r) => !r.isSatisfied)
+      .map((r) => r.suggestion);
+    const installCmd = `${pkgManager} ${pkgCmd} ${suggestions.join(' ')}`;
+
+    const message =
+      `\n[Runtime] Dependency validation failed:\n${errorLogs.join('\n')}\n\n` +
+      `👉 ${CYAN}Please run the following command in your project root:${RESET}\n` +
+      `   ${BOLD}Dir:  ${this.root}${RESET}\n` +
+      `   ${BOLD}Cmd:  ${GREEN}${installCmd}${RESET}\n`;
+
+    this.api.logger.error(message);
+    throw new Error('Runtime dependency validation failed.');
   }
 
-  /**
-   * Provides necessary aliases for internal modules and the public entry.
-   */
   public getRuntimeAlias(): Record<string, string> {
     return {
       '@@': this.tempDir,

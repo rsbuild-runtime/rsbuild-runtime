@@ -5,7 +5,7 @@ import type { UmiRoute } from './types';
 import { getNormalizedRoutes } from './utils';
 import { v5Adapter } from './adapters/v5';
 
-export class UmiRoutesFeature extends Feature<'routes', UmiRoute[]> {
+export class RoutesFeature extends Feature<'routes', UmiRoute[]> {
   constructor() {
     super('routes');
   }

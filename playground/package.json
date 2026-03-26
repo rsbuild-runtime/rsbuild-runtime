@@ -27,6 +27,7 @@
     "lodash-es": "^4.17.23",
     "react": "17.x",
     "react-dom": "17.x",
+    "react-router": "^5.3.4",
     "react-router-dom": "^5.3.4",
     "rsbuild-plugin-runtime": "workspace:*",
     "rsbuild-plugin-umi": "workspace:*",

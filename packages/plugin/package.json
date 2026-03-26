@@ -26,8 +26,7 @@
     "test:watch": "rstest --watch"
   },
   "dependencies": {
-    "@rsbuild-runtime/core": "workspace:*",
-    "semver": "^7.7.4"
+    "@rsbuild-runtime/core": "workspace:*"
   },
   "peerDependencies": {
     "@rsbuild/core": ">=1.0.0"
@@ -38,7 +37,6 @@
     "@rstest/adapter-rslib": "^0.2.0",
     "@rstest/core": "^0.8.5",
     "@types/node": "^24.10.13",
-    "@types/semver": "^7.5.8",
     "@umijs/types": "^3.5.43",
     "typescript": "^5.9.3",
     "vitest": "^4.0.0"

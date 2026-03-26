@@ -4,7 +4,7 @@ import { createJiti } from 'jiti';
 import { Feature } from '@rsbuild-runtime/core';
 import type { RuntimeIntent, FeatureParams } from '@rsbuild-runtime/core';
 
-export class UmiAppConfigFeature extends Feature {
+export class AppConfigFeature extends Feature {
   constructor() {
     super('__umi_app_config__');
   }

@@ -1,7 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 
-const ignoreDirs = [];
+// const ignoreDirs = [];
+const ignoreDirs = ['node_modules', 'dist', '.git', '.runtime'];
 const includeExts = ['.ts', '.tsx', '.js', '.mjs', '.cjs', '.json', '.yaml'];
 
 /**
